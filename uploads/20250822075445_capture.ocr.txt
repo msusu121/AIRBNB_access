@@ -1,0 +1,209 @@
+[CV] Card detected and rectified
+
+=== VARIANT rot0 === size=(2160, 3840)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot0_inv === size=(2160, 3840)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot90 === size=(3840, 2160)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot90_inv === size=(3840, 2160)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot180 === size=(2160, 3840)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot180_inv === size=(2160, 3840)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot270 === size=(3840, 2160)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot270_inv === size=(3840, 2160)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]

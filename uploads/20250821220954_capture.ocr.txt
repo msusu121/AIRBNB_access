@@ -1,0 +1,188 @@
+## rot0 | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0 | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0 | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0 | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0_inv | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0_inv | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0_inv | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot0_inv | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90 | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90 | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90 | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90 | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90_inv | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90_inv | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90_inv | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot90_inv | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180 | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180 | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180 | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180 | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180_inv | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180_inv | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180_inv | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot180_inv | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270 | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270 | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270 | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270 | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270_inv | --oem 3 --psm 6  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270_inv | --oem 3 --psm 7  -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270_inv | --oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+
+
+
+---OCR RAW---
+
+## rot270_inv | --oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+

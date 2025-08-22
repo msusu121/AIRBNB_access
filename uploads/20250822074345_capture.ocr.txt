@@ -1,0 +1,126 @@
+[CV] No 4-point card found; using full frame
+
+=== VARIANT rot0 === size=(2560, 1440)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+8
+
+7
+
+33
+
+NORM:8733
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot0_inv === size=(2560, 1440)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+8
+
+7
+
+33
+
+NORM:8733
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+=== VARIANT rot90 === size=(1440, 2560)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+4 7
+1
+7
+52
+2
+6
+
+NORM:47175226
+CANDS:['47175226', '47175226']
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+2
+
+NORM:2
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+0
+
+1
+
+4
+
+NORM:014
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+7
+
+NORM:7
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 --dpi 300
+RAW:
+4 7
+1
+7
+52
+2
+6
+
+NORM:47175226
+CANDS:['47175226', '47175226']

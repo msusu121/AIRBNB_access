@@ -1,0 +1,19 @@
+RAW:
+a rei Ki r ‘, . ‘ hi ie
+: ar th He 4
+. ig vee 4 J j
+“ey LE ry «| 1 ape
+ee? a he Cs ee
+, 1 AS AS Rte bd 4
+. apres
+
+NORM:
+a rei Ki r ‘, . ‘ hi ie
+: ar th He 4
+. i9 vee 4 J j
+“ey LE ry «1 1 ape
+ee? a he C5 ee
+, 1 A5 A5 Rte bd 4
+. apre5
+
+FOUND:None

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid md:grid-cols-2 gap-4">
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <h1 class="text-xl font-semibold">Guard Scanner</h1>
+
+    <form id="scanForm" class="space-y-3" hx-post="/guard/scan" hx-target="#result" hx-swap="innerHTML" enctype="multipart/form-data">
+      <label class="text-sm">Checkpoint</label>
+      <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+        {% for c in checkpoints %}
+          <option value="{{ c.id }}">{{ c.property.name }} – {{ c.name }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="grid grid-cols-1 gap-3">
+        <div>
+          <label class="text-sm">Upload / Take Photo (rear)</label>
+          <!-- On mobile, this opens the back camera -->
+          <input type="file" name="image" accept="image/*" capture="environment"
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm">Live camera (rear)</label>
+        <div class="aspect-video bg-slate-100 rounded-xl overflow-hidden">
+          <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button id="snap" type="button" class="px-3 py-2 rounded-xl border">Capture</button>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
+      </div>
+
+      <button class="w-full rounded-xl bg-slate-900 text-white py-2">Check Access</button>
+    </form>
+  </div>
+
+  <div id="result" class="bg-white rounded-2xl shadow-sm p-6">
+    <p class="text-sm text-slate-500">Scan result will appear here.</p>
+  </div>
+</div>
+
+<!-- Tesseract.js (browser OCR) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script>
+(async function(){
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const snap = document.getElementById('snap');
+  const form = document.getElementById('scanForm');
+  const resultBox = document.getElementById('result');
+
+  // --- CAMERA ---
+  async function startRear() {
+    const tries = [
+      { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      { video: { width: { ideal: 1920 }, height: { ideal: 1080 } } }
+    ];
+    for (const c of tries) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(c);
+        video.srcObject = stream;
+        return stream;
+      } catch(e) {}
+    }
+    throw new Error("Could not start camera");
+  }
+
+  try { await startRear(); } catch (e) { console.log('Camera not available', e); }
+
+  // --- Manual capture button (kept as fallback) ---
+  snap?.addEventListener('click', () => {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    canvas.toBlob((blob) => {
+      const dt = new DataTransfer();
+      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      const input = form.querySelector('input[name="image"]');
+      dt.items.add(file);
+      input.files = dt.files;
+    }, 'image/jpeg', 0.92);
+  });
+
+  // --- AUTO OCR LOOP (Tesseract.js) ---
+  const worker = await Tesseract.createWorker('eng', 1, {
+    // Faster & numeric-only bias
+    tessedit_char_whitelist: '0123456789',
+  });
+
+  // Simple debouncer so we don’t spam the server
+  let lastSent = "", sending = false;
+
+  async function scanFrame() {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return;
+
+    // Draw current frame
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+
+    // OPTIONAL: crop to center band (often where guard aims)
+    const bandH = Math.floor(h * 0.25);
+    const top = Math.floor((h - bandH) / 2);
+    const roi = ctx.getImageData(0, top, w, bandH);
+
+    // Recognize digits only; try psm 7-like behavior by giving a thin band
+    const { data: { text } } = await worker.recognize(roi);
+    const norm = text.replace(/[OoD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/[Zz]/g,'2').replace(/[qg]/g,'9');
+    const matchExact8 = norm.match(/\b\d{8}\b/);
+
+    if (matchExact8 && !sending) {
+      const idNum = matchExact8[0];
+      if (idNum !== lastSent) {
+        sending = true;
+        lastSent = idNum;
+
+        // Build a small snapshot for audit (JPEG data URL -> Blob)
+        const snapCanvas = document.createElement('canvas');
+        snapCanvas.width = w; snapCanvas.height = h;
+        const sctx = snapCanvas.getContext('2d');
+        sctx.drawImage(video, 0, 0, w, h);
+        const dataURL = snapCanvas.toDataURL('image/jpeg', 0.85);
+        const blob = await (await fetch(dataURL)).blob();
+        const formData = new FormData();
+        formData.append('checkpoint_id', form.querySelector('select[name="checkpoint_id"]').value);
+        formData.append('detected_id', idNum);         // <-- key bit: send detected ID
+        formData.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' })); // (optional) for your audit log
+
+        // POST to server
+        const resp = await fetch('/guard/scan', { method: 'POST', body: formData });
+        const json = await resp.json();
+
+        // Render simple result UI
+        resultBox.innerHTML = `
+          <div class="space-y-2">
+            <div class="text-sm text-slate-500">Detected ID: <span class="font-medium">${idNum}</span></div>
+            <div class="px-3 py-2 rounded-xl ${json.decision === 'allow' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">
+              ACCESS: ${json.decision === 'allow' ? 'ALLOWED' : 'DENIED'}
+            </div>
+            ${json.info ? `
+              <div class="text-sm">
+                <div><span class="font-medium">Guest:</span> ${json.info.guest_name}</div>
+                <div><span class="font-medium">Property/Room:</span> ${json.info.property} — ${json.info.room}</div>
+                <div><span class="font-medium">Stay:</span> ${new Date(json.info.check_in).toLocaleString()} → ${new Date(json.info.check_out).toLocaleString()}</div>
+                ${json.info.owns_vehicle ? `<div><span class="font-medium">Vehicle:</span> ${json.info.vehicle_plate || ''}</div>` : ''}
+              </div>
+            ` : `<div class="text-sm text-slate-500">${json.message || 'No active booking.'}</div>`}
+          </div>
+        `;
+
+        // Give it a short pause then allow scanning again
+        setTimeout(() => { sending = false; }, 1200);
+      }
+    }
+  }
+
+  // Run at an interval (lighter than per-frame)
+  setInterval(scanFrame, 800);
+})();
+</script>
+
+{% endblock %}

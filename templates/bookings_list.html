@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">Bookings</h1>
+    <a href="/bookings/new" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Booking</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500">
+          <th class="py-2">ID</th>
+          <th>Guest</th>
+          <th>National ID</th>
+          <th>Room</th>
+          <th>Guests</th>
+          <th>Vehicle</th>
+          <th>Check-in</th>
+          <th>Check-out</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for b in bookings %}
+        <tr class="border-t">
+          <td class="py-2">{{ b.id }}</td>
+          <td>{{ b.guest.full_name }}</td>
+          <td>{{ b.guest.national_id_number }}</td>
+          <td>{{ b.room.name }}</td>
+          <td>{{ b.guests_count }}</td>
+          <td>{% if b.owns_vehicle %}{{ b.vehicle_plate }}{% else %}—{% endif %}</td>
+          <td>{{ b.check_in }}</td>
+          <td>{{ b.check_out }}</td>
+          <td><span class="px-2 py-1 rounded-lg bg-slate-100">{{ b.status }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+[CV] No 4-point card found; using full frame
+
+=== VARIANT rot0 === size=(2560, 1440)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+8
+1 7
+7
+7
+2
+
+NORM:817772
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+7
+
+6
+
+8
+
+7
+
+4
+
+7
+
+NORM:768747
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 --dpi 300
+RAW:
+8
+1 7
+7
+7
+2
+
+NORM:817772
+CANDS:[]
+
+=== VARIANT rot0_inv === size=(2560, 1440)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+1 2 7
+4 7
+7
+2
+7
+
+NORM:12747727
+CANDS:['12747727', '12747727']
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+8
+
+7
+
+4
+
+7
+
+NORM:8747
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng -c tessedit_char_whitelist=0123456789 --dpi 300
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 --dpi 300
+RAW:
+1 2 7
+4 7
+7
+2
+7
+
+NORM:12747727
+CANDS:['12747727', '12747727']

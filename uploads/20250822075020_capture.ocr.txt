@@ -1,0 +1,111 @@
+[CV] Card detected and rectified
+
+=== VARIANT rot0 === size=(1880, 3328)
+
+[GLOBAL] cfg=--oem 3 --psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+5 4
+1
+1 4
+4
+4 7
+78
+4
+1 7
+8
+4 7
+1 1
+58
+4 4
+1
+7
+4
+8
+4 4
+8
+4 1
+4
+1 1
+7
+
+NORM:54114447784178471158441748448414117
+CANDS:['54114447', '78417847', '11584417', '48448414', '541144477841', '784711584417', '48448414117']
+
+[GLOBAL] cfg=--oem 3 --psm 7 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
+
+[GLOBAL] cfg=--oem 1 --psm 11 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+24
+
+4
+
+4
+
+4
+
+4
+
+8
+
+0
+
+14
+
+9
+
+9
+
+689
+
+1
+
+0
+
+0
+
+189
+
+0
+
+4
+
+1
+
+4
+
+3
+
+4
+
+4
+
+2
+
+0
+
+4
+
+8
+
+4
+
+4
+
+1
+
+4
+
+4
+
+NORM:2444448014996891001890414344204844144
+CANDS:['24444480', '14996891', '00189041', '43442048', '244444801499', '689100189041', '434420484414']
+
+[GLOBAL] cfg=--oem 1 --psm 13 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0
+RAW:
+
+NORM:
+CANDS:[]
