@@ -57,6 +57,7 @@ class Booking(db.Model):
 
     guest = db.relationship("Guest")
     room = db.relationship("Room")
+    qr_token = db.Column(db.String(64), unique=True, index=True)
 
 class Checkpoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)

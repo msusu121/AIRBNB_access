@@ -12,26 +12,35 @@
         {% endfor %}
       </select>
 
-      <div class="grid grid-cols-1 gap-3">
-        <div>
-          <label class="text-sm">Upload / Take Photo (rear)</label>
-          <input type="file" name="image" accept="image/*" capture="environment"
-                 class="w-full rounded-xl border border-slate-300 px-3 py-2">
-        </div>
+      <!-- Manual ID -->
+      <div>
+        <label class="text-sm">Manual National ID (optional)</label>
+        <input id="manualId" type="text" inputmode="numeric" pattern="\d*" maxlength="16"
+               class="w-full rounded-xl border border-slate-300 px-3 py-2"
+               placeholder="Type ID and press Check Access">
+        <p class="text-xs text-slate-500 mt-1">If filled, we’ll use this ID directly (no photo needed).</p>
       </div>
 
+      <!-- Upload / Take Photo -->
+      <div>
+        <label class="text-sm">Upload / Take Photo (rear)</label>
+        <input type="file" name="image" accept="image/*" capture="environment"
+               class="w-full rounded-xl border border-slate-300 px-3 py-2">
+      </div>
+
+      <!-- Live camera -->
       <div>
         <label class="text-sm">Live camera (rear)</label>
         <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition">
           <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
         </div>
         <div class="mt-2 flex gap-2">
-          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50"></button>
+          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Capture</button>
           <canvas id="canvas" class="hidden"></canvas>
         </div>
       </div>
 
-      <!-- hidden field for last detected id -->
+      <!-- hidden field for OCR-detected id -->
       <input type="hidden" id="detected_id" name="detected_id" value="">
 
       <button id="submitBtn" type="submit" class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
@@ -61,9 +70,9 @@
   const result      = document.getElementById('result');
   const toastBox    = document.getElementById('toast');
   const hiddenDet   = document.getElementById('detected_id');
+  const manualId    = document.getElementById('manualId');
   const submitBtn   = document.getElementById('submitBtn');
 
-  // ---------- tiny helpers ----------
   function toast(msg, ok=true, ms=1600) {
     const el = document.createElement('div');
     el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
@@ -72,30 +81,15 @@
     setTimeout(()=>{ el.classList.add('opacity-0','transition','duration-500'); }, ms-500);
     setTimeout(()=>{ el.remove(); }, ms);
   }
-
-  function fmtDT(iso) {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    } catch { return iso || '-'; }
-  }
-
-  const chip = (text) =>
-    `<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium border-slate-300 text-slate-700 bg-white">${text}</span>`;
-
+  const chip = (t)=>`<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium border-slate-300 text-slate-700 bg-white">${t}</span>`;
+  const fmtDT = (iso)=>{ try { return new Date(iso).toLocaleString(); } catch { return iso || '-'; } };
   function glow(state) {
-    // state: 'ok' | 'fail' | 'clear'
     videoWrap.classList.remove('ring-emerald-400','ring-rose-400','animate-pulse','ring-2');
-    if (state === 'ok') {
-      videoWrap.classList.add('ring-2','ring-emerald-400');
-      setTimeout(()=>glow('clear'), 900);
-    } else if (state === 'fail') {
-      videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse');
-      setTimeout(()=>glow('clear'), 1200);
-    }
+    if (state==='ok'){ videoWrap.classList.add('ring-2','ring-emerald-400'); setTimeout(()=>glow('clear'),900); }
+    if (state==='fail'){ videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse'); setTimeout(()=>glow('clear'),1200); }
   }
 
-  // ---------- camera ----------
+  // Camera
   async function startRear() {
     const tries = [
       { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
@@ -115,20 +109,16 @@
   }
   await startRear();
 
-  // ---------- frame capture (manual fills file input) ----------
-  snap?.addEventListener('click', async () => { await captureIntoFileInput(); });
-
-  async function captureIntoFileInput() {
+  // Capture helper
+  snap?.addEventListener('click', async () => {
     const blob = await captureFrameBlob();
-    if (!blob) return null;
+    if (!blob) return;
     const dt = new DataTransfer();
     dt.items.add(new File([blob], 'capture.jpg', { type: 'image/jpeg' }));
     const input = form.querySelector('input[name="image"]');
     input.files = dt.files;
     toast('Frame captured');
-    return blob;
-  }
-
+  });
   async function captureFrameBlob() {
     const w = video.videoWidth, h = video.videoHeight;
     if (!w || !h) { toast('Camera not ready', false); return null; }
@@ -137,32 +127,22 @@
     return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
   }
 
-  // ---------- Tesseract worker for auto-detect ----------
+  // OCR worker (auto)
   const worker = await Tesseract.createWorker();
   await worker.loadLanguage('eng');
   await worker.initialize('eng');
-  await worker.setParameters({
-    tessedit_char_whitelist: '0123456789',
-    user_defined_dpi: '300'
-  });
+  await worker.setParameters({ tessedit_char_whitelist:'0123456789', user_defined_dpi:'300' });
+  const normDigits = (s)=>s.replace(/[OoD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/[Zz]/g,'2').replace(/[qg]/g,'9');
 
-  function normDigits(s) {
-    return s
-      .replace(/[OoD]/g,'0')
-      .replace(/[Il|!]/g,'1')
-      .replace(/[Ss]/g,'5')
-      .replace(/[Zz]/g,'2')
-      .replace(/[qg]/g,'9');
-  }
-
-  let sending = false;
-  let lastSent = '';
+  let sending=false, lastSent='';
 
   async function autoScan() {
     const w = video.videoWidth, h = video.videoHeight;
     if (!w || !h || sending) return;
 
-    // center band for accuracy
+    // if guard typed something, don't override
+    if (manualId.value.trim()) return;
+
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, w, h);
@@ -180,7 +160,7 @@
     const idNum = m[0];
     if (idNum === lastSent) return;
 
-    // confidence guard
+    // simple confidence gate
     let avgConf = 70;
     if (Array.isArray(data.words) && data.words.length) {
       const confs = data.words.map(w => w.confidence || 0);
@@ -194,65 +174,66 @@
 
   async function sendOnce({ detectedId = '', attachSnapshot = false } = {}) {
     if (sending) return;
-    sending = true;
-    submitBtn.disabled = true;
+    sending = true; submitBtn.disabled = true;
 
     try {
       const fd = new FormData();
       fd.append('checkpoint_id', form.querySelector('select[name="checkpoint_id"]').value);
 
-      if (detectedId) {
+      // Prefer manual text if present
+      const manual = manualId.value.trim();
+      if (manual) {
+        fd.append('detected_id', manual);
+        lastSent = manual;
+      } else if (detectedId) {
         fd.append('detected_id', detectedId);
         lastSent = detectedId;
-        toast(`ID detected: ${detectedId}`);
       } else if (hiddenDet.value) {
         fd.append('detected_id', hiddenDet.value);
+        lastSent = hiddenDet.value;
       }
 
-      const fileInput = form.querySelector('input[name="image"]');
-      if (fileInput.files.length > 0) {
-        fd.append('image', fileInput.files[0]);
-      } else if (attachSnapshot) {
-        const blob = await captureFrameBlob();
-        if (blob) fd.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' }));
+      // Only attach photo if we didn't have manual ID and we want a snapshot
+      if (!manual && attachSnapshot) {
+        const fileInput = form.querySelector('input[name="image"]');
+        if (fileInput.files.length > 0) {
+          fd.append('image', fileInput.files[0]);
+        } else {
+          const blob = await captureFrameBlob();
+          if (blob) fd.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' }));
+        }
       }
 
-      toast('Checking access…');
       const resp = await fetch('/guard/scan', { method: 'POST', body: fd });
       const json = await resp.json();
 
-      renderResult(json, detectedId || hiddenDet.value);
-      glow(json.decision === 'allow' ? 'ok' : 'clear'); // green glow on allow
+      renderResult(json, lastSent);
+      glow(json.decision === 'allow' ? 'ok' : 'clear');
       toast(json.decision === 'allow' ? 'ACCESS ALLOWED' : 'ACCESS DENIED', json.decision === 'allow');
     } catch (e) {
       console.error(e);
       toast('Network error', false);
     } finally {
-      sending = false;
-      submitBtn.disabled = false;
+      sending = false; submitBtn.disabled = false;
     }
   }
 
-  // ---------- polished result card with "scan again" guidance ----------
   function renderResult(json, idNum) {
     const allowed = json.decision === 'allow';
-    const toneBox = allowed
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-      : 'bg-rose-50 text-rose-800 border-rose-200';
+    const toneBox = allowed ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-50 text-rose-800 border-rose-200';
     const toneDot = allowed ? 'bg-emerald-500' : 'bg-rose-500';
     const toneLabel = allowed ? 'ALLOWED' : 'DENIED';
+    const idChip = idNum ? chip(`ID: ${idNum}`) : '';
 
-    // Success with info
     if (json.info) {
       const i = json.info;
-      const vehicle = i.owns_vehicle
-        ? `<div class="flex items-center gap-2">
-             <span class="inline-flex h-2 w-2 rounded-full bg-slate-400"></span>
-             <span class="text-slate-600">Vehicle</span>
-             ${chip(i.vehicle_plate || '—')}
-           </div>`
-        : '';
-      const idChip = idNum ? chip(`ID: ${idNum}`) : '';
+      const vehicle = i.owns_vehicle ? `
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-2 w-2 rounded-full bg-slate-400"></span>
+          <span class="text-slate-600">Vehicle</span>
+          ${chip(i.vehicle_plate || '—')}
+        </div>` : '';
 
       result.innerHTML = `
         <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
@@ -307,11 +288,8 @@
       return;
     }
 
-    // Deny / No info — include explicit "scan again" guidance when no ID was detected server-side
     const noId = json.reason === 'ocr_no_id_detected' || (!idNum && !json.info);
-    if (noId) {
-      glow('fail'); // red pulse on the camera box
-    }
+    if (noId) glow('fail');
 
     result.innerHTML = `
       <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
@@ -319,35 +297,26 @@
           <div class="flex items-center gap-2">
             <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
             <span class="text-sm font-semibold">${toneLabel}</span>
-            ${idNum ? `<span class="text-xs text-slate-600">for <span class="font-medium">${idNum}</span></span>` : ''}
+            ${idChip}
           </div>
         </div>
         <div class="p-4 space-y-3">
           <p class="text-sm text-slate-700">
-            ${noId ? 'No ID Number detected. Please hold the ID steady and scan again.' : (json.message || 'No active booking found.')}
+            ${noId ? 'No ID number detected. Please type the ID or rescan.' : (json.message || 'No active booking found.')}
           </p>
-
-          ${noId ? `
-            <ul class="text-xs text-slate-500 list-disc pl-4 space-y-1">
-              <li>Fill the frame with the ID number area</li>
-              <li>Ensure good lighting (no glare)</li>
-              <li>Hold steady for a second</li>
-            </ul>
-          ` : ''}
-
           ${json.debug?.extracted_national_id ? `<p class="mt-2 text-xs text-slate-500">Detected: ${json.debug.extracted_national_id || '—'}</p>` : ''}
         </div>
       </div>
     `;
   }
 
-  // auto-scan loop
+  // loop
   setInterval(() => autoScan().catch(()=>{}), 800);
 
-  // manual submit -> one-shot send, always attach snapshot
+  // submit (prefer manual if present)
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await sendOnce({ detectedId: hiddenDet.value, attachSnapshot: true });
+    await sendOnce({ detectedId: hiddenDet.value, attachSnapshot: !manualId.value.trim() });
   });
 })();
 </script>

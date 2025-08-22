@@ -1,0 +1,13 @@
+RAW:
+re i
+=<
+wits oe cy a sere
+KTNANGOP
+
+NORM:
+re i
+=<
+wit5 0e cy a 5ere
+KTNANG0P
+
+FOUND:None

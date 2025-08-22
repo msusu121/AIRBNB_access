@@ -1,0 +1,19 @@
+RAW:
+#
+a é
+mALe alii
+Dye T OF cadre ? ;
+: KI NANGOP q
+' ONGATA RONGA!
+; 18, 04. 2023 : - -
+
+NORM:
+#
+a é
+mALe a1ii
+0ye T 0F cadre ? ;
+: K1 NANG0P 9
+' 0NGATA R0NGA1
+; 18, 04. 2023 : - -
+
+FOUND:None

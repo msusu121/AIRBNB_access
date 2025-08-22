@@ -1,0 +1,33 @@
+RAW:
+(STRUCT Ge atis
+
+KINANGOP
+
+PLALE OF
+
+ONGATA RONGA!
+
+BATR OF ihm
+
+18, 04, 2073 a aie HE
+
+MOLDER'R GiGi % iE
+=.)
+
+NORM:
+(5TRUCT Ge ati5
+
+K1NANG0P
+
+PLALE 0F
+
+0NGATA R0NGA1
+
+8ATR 0F ihm
+
+18, 04, 2073 a aie HE
+
+M0L0ER'R GiGi % iE
+=.)
+
+FOUND:None

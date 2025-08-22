@@ -1,0 +1,21 @@
+RAW:
+To Pema es 4
+
+SS age lh ae y Oe.
+
+ei Oe 7549671: Z re
+as et oF me E
+« TWANGOP
+“
+
+NORM:
+T0 Pema e5 4
+
+55 a9e 1h ae y 0e.
+
+ei 0e 7549671: 2 re
+a5 et 0F me E
+« TWANG0P
+“
+
+FOUND:7549671

@@ -1,0 +1,15 @@
+RAW:
+TANDUNCAN ops Fate
+MALE © 1
+K TNANGOP
+it .
+—
+
+NORM:
+TAN0UNCAN 0p5 Fate
+MALE © 1
+K TNANG0P
+it .
+—
+
+FOUND:None

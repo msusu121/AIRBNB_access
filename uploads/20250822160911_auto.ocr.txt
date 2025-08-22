@@ -1,0 +1,17 @@
+RAW:
+Te. cael Le
+TANDUNCAN soe wees
+Ete
+-~ MALE
+we: , 7
+ema
+
+NORM:
+Te. cae1 Le
+TAN0UNCAN 50e wee5
+Ete
+-~ MALE
+we: , 7
+ema
+
+FOUND:None
