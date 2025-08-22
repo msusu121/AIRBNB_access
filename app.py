@@ -5,6 +5,7 @@ from models import db, User
 from blueprints.auth import bp as auth_bp
 from blueprints.bookings import bp as bookings_bp
 from blueprints.guard import bp as guard_bp
+from blueprints.admin import bp as admin_bp
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -24,6 +25,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(bookings_bp)
     app.register_blueprint(guard_bp)
+    app.register_blueprint(admin_bp)
 
     @app.get("/")
     def home():

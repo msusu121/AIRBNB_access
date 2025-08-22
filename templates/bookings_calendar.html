@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-semibold">Bookings Calendar</h1>
+      <span id="rangeLabel" class="text-sm text-slate-500"></span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Room filter -->
+      <select id="roomFilter" class="rounded-xl border border-slate-300 px-3 py-1.5 text-sm">
+        <option value="">All rooms</option>
+        {% for r in rooms %}
+          <option value="{{ r.id }}">{{ r.name }}</option>
+        {% endfor %}
+      </select>
+
+      <!-- Toolbar proxy -->
+      <div class="inline-flex rounded-xl border border-slate-300 overflow-hidden">
+        <button id="prevBtn" class="px-3 py-1.5 text-sm hover:bg-slate-50">Prev</button>
+        <button id="todayBtn" class="px-3 py-1.5 text-sm hover:bg-slate-50 border-l border-r border-slate-300">Today</button>
+        <button id="nextBtn" class="px-3 py-1.5 text-sm hover:bg-slate-50">Next</button>
+      </div>
+      <div class="inline-flex rounded-xl border border-slate-300 overflow-hidden">
+        <button data-view="dayGridMonth" class="viewBtn px-3 py-1.5 text-sm bg-slate-900 text-white">Month</button>
+        <button data-view="listWeek" class="viewBtn px-3 py-1.5 text-sm hover:bg-slate-50">Week list</button>
+      </div>
+
+      <a href="/bookings/new" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Booking</a>
+    </div>
+  </div>
+
+  <div id="legend" class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded bg-emerald-500"></span> Active stay</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded bg-amber-500"></span> Check-in / Check-out day</span>
+  </div>
+
+  <div id="calendar" class="rounded-2xl overflow-hidden ring-1 ring-slate-200"></div>
+</div>
+
+<script>
+(function(){
+  // -------- helpers --------
+  const rangeLabel = document.getElementById('rangeLabel');
+  const roomFilter = document.getElementById('roomFilter');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const todayBtn = document.getElementById('todayBtn');
+  const viewButtons = document.querySelectorAll('.viewBtn');
+
+  // palette per room (stable hashing -> color)
+  function roomColor(roomId) {
+    const colors = ['#10b981','#3b82f6','#a855f7','#ef4444','#f59e0b','#06b6d4','#84cc16','#e11d48'];
+    let h = 0; const s = String(roomId);
+    for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+    return colors[h % colors.length];
+  }
+
+  // For all-day bars: FullCalendar treats end as exclusive. Add +1 day to show inclusive range.
+  function plusOneDay(iso) {
+    const d = new Date(iso);
+    d.setDate(d.getDate()+1);
+    // keep midnight UTC-ish; return ISO string (date only is fine for allDay)
+    return d.toISOString().slice(0,10);
+  }
+
+  // Build event objects FullCalendar understands
+  function mapEvents(json, roomIdFilter) {
+    const arr = [];
+    for (const ev of json.events || []) {
+      if (roomIdFilter && String(ev.room_id) !== String(roomIdFilter)) continue;
+
+      // Mark check-in/out days with amber; middle days green
+      const startD = new Date(ev.check_in);
+      const endD   = new Date(ev.check_out);
+      const isSameDay = startD.toDateString() === endD.toDateString();
+
+      arr.push({
+        id: String(ev.id),
+        title: `${ev.room} • ${ev.guest}`,
+        start: ev.check_in.slice(0,10),          // use date-only, treat as allDay
+        end: plusOneDay(ev.check_out),           // exclusive end
+        allDay: true,
+        backgroundColor: roomColor(ev.room_id),
+        borderColor: roomColor(ev.room_id),
+        display: 'block',
+        extendedProps: {
+          guest: ev.guest,
+          room: ev.room,
+          room_id: ev.room_id,
+          national_id: ev.national_id,
+          guests_count: ev.guests_count,
+          owns_vehicle: ev.owns_vehicle,
+          vehicle_plate: ev.vehicle_plate,
+          check_in: ev.check_in,
+          check_out: ev.check_out
+        }
+      });
+
+      // Optional: tiny edge markers (amber) for check-in/out emphasis (skipped if same-day)
+      if (!isSameDay) {
+        arr.push({
+          id: `in-${ev.id}`,
+          title: 'Check-in',
+          start: ev.check_in.slice(0,10),
+          allDay: true,
+          display: 'background',
+          backgroundColor: '#f59e0b55',
+          borderColor: '#f59e0b55'
+        });
+        arr.push({
+          id: `out-${ev.id}`,
+          title: 'Check-out',
+          start: ev.check_out.slice(0,10),
+          allDay: true,
+          display: 'background',
+          backgroundColor: '#f59e0b55',
+          borderColor: '#f59e0b55'
+        });
+      }
+    }
+    return arr;
+  }
+
+  // -------- calendar --------
+  const calEl = document.getElementById('calendar');
+  const calendar = new FullCalendar.Calendar(calEl, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    headerToolbar: false,      // we use our own toolbar
+    firstDay: 0,               // Sunday start (change to 1 for Monday)
+    fixedWeekCount: true,      // always 6 weeks like Google Calendar
+    showNonCurrentDates: true,
+    displayEventTime: false,
+    dayMaxEventRows: 3,        // “+ more” link if many
+    eventDisplay: 'block',
+    eventDidMount: info => {
+      // nicer pill styling
+      const bg = info.el.querySelector('.fc-event-title');
+      if (bg) bg.classList.add('px-1.5','py-0.5','rounded','text-[11px]','font-medium');
+      info.el.style.borderRadius = '10px';
+    },
+    datesSet: (arg) => {
+      const s = arg.start, e = new Date(arg.end.getTime() - 86400000);
+      rangeLabel.textContent = `${s.toLocaleDateString([], {month:'short', day:'2-digit', year:'numeric'})} – ${e.toLocaleDateString([], {month:'short', day:'2-digit', year:'numeric'})}`;
+    },
+    eventClick: (info) => {
+      const p = info.event.extendedProps;
+      // simple detail popover
+      const html = `
+        <div class="p-3 text-sm">
+          <div><span class="text-slate-500">Guest:</span> <span class="font-medium">${p.guest}</span></div>
+          <div><span class="text-slate-500">Room:</span> <span class="font-medium">${p.room}</span></div>
+          <div><span class="text-slate-500">Stay:</span> ${new Date(p.check_in).toLocaleString()} → ${new Date(p.check_out).toLocaleString()}</div>
+          <div><span class="text-slate-500">Guests:</span> ${p.guests_count}</div>
+          ${p.owns_vehicle ? `<div><span class="text-slate-500">Vehicle:</span> ${p.vehicle_plate || ''}</div>` : ''}
+          <div class="mt-2 text-xs text-slate-500">NID: ${p.national_id}</div>
+        </div>`;
+      // basic tooltip using native dialog-ish
+      const tip = document.createElement('div');
+      tip.className = 'fixed z-50 bg-white border border-slate-200 rounded-xl shadow-lg';
+      tip.innerHTML = html;
+      document.body.appendChild(tip);
+      const rect = info.jsEvent.target.getBoundingClientRect();
+      tip.style.left = (rect.left + window.scrollX + 8) + 'px';
+      tip.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
+      const close = () => tip.remove();
+      setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+    },
+
+    // Dynamic event source from backend
+    events: async (fetchInfo, success, failure) => {
+      try {
+        const params = new URLSearchParams({
+          start: fetchInfo.startStr.slice(0,10),
+          end:   fetchInfo.endStr.slice(0,10)
+        });
+        const res = await fetch(`/bookings/data?${params.toString()}`);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Failed fetch');
+
+        const filtered = mapEvents(json, roomFilter.value);
+        success(filtered);
+      } catch (e) {
+        console.error(e);
+        failure(e);
+      }
+    }
+  });
+
+  calendar.render();
+
+  // -------- toolbar wiring --------
+  prevBtn.addEventListener('click', () => calendar.prev());
+  nextBtn.addEventListener('click', () => calendar.next());
+  todayBtn.addEventListener('click', () => calendar.today());
+
+  viewButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      viewButtons.forEach(b => b.classList.remove('bg-slate-900','text-white'));
+      btn.classList.add('bg-slate-900','text-white');
+      calendar.changeView(btn.dataset.view);
+    });
+  });
+
+  // Room filter -> refetch
+  roomFilter.addEventListener('change', () => {
+    calendar.refetchEvents();
+  });
+})();
+</script>
+{% endblock %}

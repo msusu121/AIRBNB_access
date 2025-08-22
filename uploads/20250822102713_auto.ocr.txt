@@ -1,0 +1,19 @@
+RAW:
+be
+| :
+f
+| ;
+| Sh \ 5
+| Ve , ne » ~ 2
+| ee iis :
+
+NORM:
+be
+1 :
+f
+1 ;
+1 5h \ 5
+1 Ve , ne » ~ 2
+1 ee ii5 :
+
+FOUND:None

@@ -1,7 +1,8 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db, Room, Booking, Guest, ROLE_ADMIN, ROLE_HOST
+from sqlalchemy import and_
 
 bp = Blueprint("bookings", __name__, url_prefix="/bookings")
 
@@ -14,8 +15,71 @@ def index():
     if not _can_manage():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
-    bookings = Booking.query.order_by(Booking.id.desc()).limit(100).all()
-    return render_template("bookings_list.html", bookings=bookings)
+
+    # >>> Build a JSON-serializable list for the template
+    rooms_q = Room.query.order_by(Room.name.asc()).all()
+    rooms_data = [{"id": r.id, "name": r.name} for r in rooms_q]
+
+    # Render the calendar shell; events are fetched via /bookings/data
+    return render_template("bookings_calendar.html", rooms=rooms_data)
+
+@bp.get("/data")
+@login_required
+def data():
+    if not _can_manage():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    # Parse range
+    start_s = request.args.get("start")
+    end_s   = request.args.get("end")
+    try:
+        if not start_s or not end_s:
+            today = date.today()
+            month_first = today.replace(day=1)
+            # start on Sunday before/at month start (adjust if you want Monday start)
+            start = month_first - timedelta(days=(month_first.weekday() + 1) % 7)
+            end = start + timedelta(days=41)  # 6-week grid
+        else:
+            start = datetime.fromisoformat(start_s).date()
+            end   = datetime.fromisoformat(end_s).date()
+    except Exception:
+        return jsonify({"ok": False, "error": "Bad date range"}), 400
+
+    start_dt = datetime.combine(start, datetime.min.time())
+    end_dt   = datetime.combine(end,   datetime.max.time())
+
+    bookings = (
+        db.session.query(Booking)
+        .join(Guest, Booking.guest_id == Guest.id)
+        .join(Room, Booking.room_id == Room.id)
+        .filter(
+            and_(
+                Booking.check_in <= end_dt,
+                Booking.check_out >= start_dt
+            )
+        )
+        .order_by(Booking.check_in.asc())
+        .all()
+    )
+
+    events = []
+    for b in bookings:
+        events.append({
+            "id": b.id,
+            "guest": b.guest.full_name,
+            "national_id": b.guest.national_id_number,
+            "room_id": b.room_id,
+            "room": b.room.name,
+            "check_in": b.check_in.isoformat(),
+            "check_out": b.check_out.isoformat(),
+            "guests_count": b.guests_count,
+            "owns_vehicle": bool(b.owns_vehicle),
+            "vehicle_plate": b.vehicle_plate or "",
+            "status": b.status,
+        })
+
+    rooms_data = [{"id": r.id, "name": r.name} for r in Room.query.order_by(Room.name.asc()).all()]
+    return jsonify({"ok": True, "events": events, "rooms": rooms_data})
 
 @bp.get("/new")
 @login_required

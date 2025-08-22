@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-semibold">Checkpoints</h1>
+    <a href="{{ url_for('admin.checkpoints_new') }}" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Checkpoint</a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500">
+          <th class="py-2">ID</th>
+          <th>Name</th>
+          <th>Property</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in checkpoints %}
+        <tr class="border-t">
+          <td class="py-2">{{ c.id }}</td>
+          <td>{{ c.name }}</td>
+          <td>{{ c.property.name }}</td>
+          <td class="text-right">
+            <a href="{{ url_for('admin.checkpoints_edit', cp_id=c.id) }}" class="text-slate-700 hover:underline">Edit</a>
+            <form method="post" action="{{ url_for('admin.checkpoints_delete', cp_id=c.id) }}" class="inline" onsubmit="return confirm('Delete this checkpoint?')">
+              <button class="ml-3 text-rose-600 hover:underline">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="py-6 text-center text-slate-500">No checkpoints yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

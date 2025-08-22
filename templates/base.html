@@ -14,6 +14,21 @@
         <div class="w-8 h-8 rounded-2xl bg-slate-900"></div>
         <a href="/" class="font-semibold">Airbnb Gate Access</a>
       </div>
+
+      <!-- Admin dropdown (hover) — uses literal paths to avoid BuildError -->
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <div class="relative group">
+          <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">
+            Admin
+          </button>
+          <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[200px] z-40">
+            <a href="/admin/properties"  class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
+            <a href="/admin/rooms"       class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
+            <a href="/admin/checkpoints" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
+          </div>
+        </div>
+      {% endif %}
+
       <div class="flex items-center gap-4">
         {% if current_user.is_authenticated %}
           <a href="/bookings" class="text-sm hover:underline">Bookings</a>

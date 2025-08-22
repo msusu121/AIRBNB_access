@@ -4,7 +4,7 @@
   <div class="bg-white rounded-2xl shadow-sm p-6">
     <h1 class="text-xl font-semibold">Guard Scanner</h1>
 
-    <form id="scanForm" class="space-y-3" hx-post="/guard/scan" hx-target="#result" hx-swap="innerHTML" enctype="multipart/form-data">
+    <form id="scanForm" class="space-y-3" enctype="multipart/form-data">
       <label class="text-sm">Checkpoint</label>
       <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
         {% for c in checkpoints %}
@@ -15,155 +15,340 @@
       <div class="grid grid-cols-1 gap-3">
         <div>
           <label class="text-sm">Upload / Take Photo (rear)</label>
-          <!-- On mobile, this opens the back camera -->
           <input type="file" name="image" accept="image/*" capture="environment"
-                 class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2">
         </div>
       </div>
 
       <div>
         <label class="text-sm">Live camera (rear)</label>
-        <div class="aspect-video bg-slate-100 rounded-xl overflow-hidden">
+        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition">
           <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
         </div>
         <div class="mt-2 flex gap-2">
-          <button id="snap" type="button" class="px-3 py-2 rounded-xl border">Capture</button>
+          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50"></button>
           <canvas id="canvas" class="hidden"></canvas>
         </div>
       </div>
 
-      <button class="w-full rounded-xl bg-slate-900 text-white py-2">Check Access</button>
+      <!-- hidden field for last detected id -->
+      <input type="hidden" id="detected_id" name="detected_id" value="">
+
+      <button id="submitBtn" type="submit" class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
+        Check Access
+      </button>
     </form>
   </div>
 
+  <!-- Result -->
   <div id="result" class="bg-white rounded-2xl shadow-sm p-6">
     <p class="text-sm text-slate-500">Scan result will appear here.</p>
   </div>
 </div>
 
-<!-- Tesseract.js (browser OCR) -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Toasts -->
+<div id="toast" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
+<!-- Tesseract.js -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 (async function(){
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const snap = document.getElementById('snap');
-  const form = document.getElementById('scanForm');
-  const resultBox = document.getElementById('result');
+  const video       = document.getElementById('video');
+  const videoWrap   = document.getElementById('videoWrap');
+  const canvas      = document.getElementById('canvas');
+  const snap        = document.getElementById('snap');
+  const form        = document.getElementById('scanForm');
+  const result      = document.getElementById('result');
+  const toastBox    = document.getElementById('toast');
+  const hiddenDet   = document.getElementById('detected_id');
+  const submitBtn   = document.getElementById('submitBtn');
 
-  // --- CAMERA ---
+  // ---------- tiny helpers ----------
+  function toast(msg, ok=true, ms=1600) {
+    const el = document.createElement('div');
+    el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
+    el.textContent = msg;
+    toastBox.appendChild(el);
+    setTimeout(()=>{ el.classList.add('opacity-0','transition','duration-500'); }, ms-500);
+    setTimeout(()=>{ el.remove(); }, ms);
+  }
+
+  function fmtDT(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    } catch { return iso || '-'; }
+  }
+
+  const chip = (text) =>
+    `<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium border-slate-300 text-slate-700 bg-white">${text}</span>`;
+
+  function glow(state) {
+    // state: 'ok' | 'fail' | 'clear'
+    videoWrap.classList.remove('ring-emerald-400','ring-rose-400','animate-pulse','ring-2');
+    if (state === 'ok') {
+      videoWrap.classList.add('ring-2','ring-emerald-400');
+      setTimeout(()=>glow('clear'), 900);
+    } else if (state === 'fail') {
+      videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse');
+      setTimeout(()=>glow('clear'), 1200);
+    }
+  }
+
+  // ---------- camera ----------
   async function startRear() {
     const tries = [
       { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
       { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
-      { video: { width: { ideal: 1920 }, height: { ideal: 1080 } } }
+      { video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
     ];
     for (const c of tries) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia(c);
         video.srcObject = stream;
-        return stream;
+        await new Promise(r => video.onloadedmetadata = r);
+        toast('Camera ready ✅');
+        return;
       } catch(e) {}
     }
-    throw new Error("Could not start camera");
+    toast('Rear camera not available', false);
+  }
+  await startRear();
+
+  // ---------- frame capture (manual fills file input) ----------
+  snap?.addEventListener('click', async () => { await captureIntoFileInput(); });
+
+  async function captureIntoFileInput() {
+    const blob = await captureFrameBlob();
+    if (!blob) return null;
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], 'capture.jpg', { type: 'image/jpeg' }));
+    const input = form.querySelector('input[name="image"]');
+    input.files = dt.files;
+    toast('Frame captured');
+    return blob;
   }
 
-  try { await startRear(); } catch (e) { console.log('Camera not available', e); }
-
-  // --- Manual capture button (kept as fallback) ---
-  snap?.addEventListener('click', () => {
+  async function captureFrameBlob() {
     const w = video.videoWidth, h = video.videoHeight;
-    if (!w || !h) return;
+    if (!w || !h) { toast('Camera not ready', false); return null; }
     canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, w, h);
-    canvas.toBlob((blob) => {
-      const dt = new DataTransfer();
-      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
-      const input = form.querySelector('input[name="image"]');
-      dt.items.add(file);
-      input.files = dt.files;
-    }, 'image/jpeg', 0.92);
-  });
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+  }
 
-  // --- AUTO OCR LOOP (Tesseract.js) ---
-  const worker = await Tesseract.createWorker('eng', 1, {
-    // Faster & numeric-only bias
+  // ---------- Tesseract worker for auto-detect ----------
+  const worker = await Tesseract.createWorker();
+  await worker.loadLanguage('eng');
+  await worker.initialize('eng');
+  await worker.setParameters({
     tessedit_char_whitelist: '0123456789',
+    user_defined_dpi: '300'
   });
 
-  // Simple debouncer so we don’t spam the server
-  let lastSent = "", sending = false;
+  function normDigits(s) {
+    return s
+      .replace(/[OoD]/g,'0')
+      .replace(/[Il|!]/g,'1')
+      .replace(/[Ss]/g,'5')
+      .replace(/[Zz]/g,'2')
+      .replace(/[qg]/g,'9');
+  }
 
-  async function scanFrame() {
+  let sending = false;
+  let lastSent = '';
+
+  async function autoScan() {
     const w = video.videoWidth, h = video.videoHeight;
-    if (!w || !h) return;
+    if (!w || !h || sending) return;
 
-    // Draw current frame
+    // center band for accuracy
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, w, h);
-
-    // OPTIONAL: crop to center band (often where guard aims)
-    const bandH = Math.floor(h * 0.25);
+    const bandH = Math.floor(h * 0.28);
     const top = Math.floor((h - bandH) / 2);
-    const roi = ctx.getImageData(0, top, w, bandH);
+    const band = document.createElement('canvas');
+    band.width = w; band.height = bandH;
+    band.getContext('2d').drawImage(canvas, 0, top, w, bandH, 0, 0, w, bandH);
 
-    // Recognize digits only; try psm 7-like behavior by giving a thin band
-    const { data: { text } } = await worker.recognize(roi);
-    const norm = text.replace(/[OoD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/[Zz]/g,'2').replace(/[qg]/g,'9');
-    const matchExact8 = norm.match(/\b\d{8}\b/);
+    const { data } = await worker.recognize(band);
+    const text = normDigits(data.text || '');
+    const m = text.match(/\b\d{8}\b/);
+    if (!m) return;
 
-    if (matchExact8 && !sending) {
-      const idNum = matchExact8[0];
-      if (idNum !== lastSent) {
-        sending = true;
-        lastSent = idNum;
+    const idNum = m[0];
+    if (idNum === lastSent) return;
 
-        // Build a small snapshot for audit (JPEG data URL -> Blob)
-        const snapCanvas = document.createElement('canvas');
-        snapCanvas.width = w; snapCanvas.height = h;
-        const sctx = snapCanvas.getContext('2d');
-        sctx.drawImage(video, 0, 0, w, h);
-        const dataURL = snapCanvas.toDataURL('image/jpeg', 0.85);
-        const blob = await (await fetch(dataURL)).blob();
-        const formData = new FormData();
-        formData.append('checkpoint_id', form.querySelector('select[name="checkpoint_id"]').value);
-        formData.append('detected_id', idNum);         // <-- key bit: send detected ID
-        formData.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' })); // (optional) for your audit log
+    // confidence guard
+    let avgConf = 70;
+    if (Array.isArray(data.words) && data.words.length) {
+      const confs = data.words.map(w => w.confidence || 0);
+      avgConf = Math.round(confs.reduce((a,b)=>a+b,0)/confs.length);
+    }
+    if (avgConf < 60) return;
 
-        // POST to server
-        const resp = await fetch('/guard/scan', { method: 'POST', body: formData });
-        const json = await resp.json();
+    hiddenDet.value = idNum;
+    await sendOnce({ detectedId: idNum, attachSnapshot: true });
+  }
 
-        // Render simple result UI
-        resultBox.innerHTML = `
-          <div class="space-y-2">
-            <div class="text-sm text-slate-500">Detected ID: <span class="font-medium">${idNum}</span></div>
-            <div class="px-3 py-2 rounded-xl ${json.decision === 'allow' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">
-              ACCESS: ${json.decision === 'allow' ? 'ALLOWED' : 'DENIED'}
-            </div>
-            ${json.info ? `
-              <div class="text-sm">
-                <div><span class="font-medium">Guest:</span> ${json.info.guest_name}</div>
-                <div><span class="font-medium">Property/Room:</span> ${json.info.property} — ${json.info.room}</div>
-                <div><span class="font-medium">Stay:</span> ${new Date(json.info.check_in).toLocaleString()} → ${new Date(json.info.check_out).toLocaleString()}</div>
-                ${json.info.owns_vehicle ? `<div><span class="font-medium">Vehicle:</span> ${json.info.vehicle_plate || ''}</div>` : ''}
-              </div>
-            ` : `<div class="text-sm text-slate-500">${json.message || 'No active booking.'}</div>`}
-          </div>
-        `;
+  async function sendOnce({ detectedId = '', attachSnapshot = false } = {}) {
+    if (sending) return;
+    sending = true;
+    submitBtn.disabled = true;
 
-        // Give it a short pause then allow scanning again
-        setTimeout(() => { sending = false; }, 1200);
+    try {
+      const fd = new FormData();
+      fd.append('checkpoint_id', form.querySelector('select[name="checkpoint_id"]').value);
+
+      if (detectedId) {
+        fd.append('detected_id', detectedId);
+        lastSent = detectedId;
+        toast(`ID detected: ${detectedId}`);
+      } else if (hiddenDet.value) {
+        fd.append('detected_id', hiddenDet.value);
       }
+
+      const fileInput = form.querySelector('input[name="image"]');
+      if (fileInput.files.length > 0) {
+        fd.append('image', fileInput.files[0]);
+      } else if (attachSnapshot) {
+        const blob = await captureFrameBlob();
+        if (blob) fd.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' }));
+      }
+
+      toast('Checking access…');
+      const resp = await fetch('/guard/scan', { method: 'POST', body: fd });
+      const json = await resp.json();
+
+      renderResult(json, detectedId || hiddenDet.value);
+      glow(json.decision === 'allow' ? 'ok' : 'clear'); // green glow on allow
+      toast(json.decision === 'allow' ? 'ACCESS ALLOWED' : 'ACCESS DENIED', json.decision === 'allow');
+    } catch (e) {
+      console.error(e);
+      toast('Network error', false);
+    } finally {
+      sending = false;
+      submitBtn.disabled = false;
     }
   }
 
-  // Run at an interval (lighter than per-frame)
-  setInterval(scanFrame, 800);
+  // ---------- polished result card with "scan again" guidance ----------
+  function renderResult(json, idNum) {
+    const allowed = json.decision === 'allow';
+    const toneBox = allowed
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      : 'bg-rose-50 text-rose-800 border-rose-200';
+    const toneDot = allowed ? 'bg-emerald-500' : 'bg-rose-500';
+    const toneLabel = allowed ? 'ALLOWED' : 'DENIED';
+
+    // Success with info
+    if (json.info) {
+      const i = json.info;
+      const vehicle = i.owns_vehicle
+        ? `<div class="flex items-center gap-2">
+             <span class="inline-flex h-2 w-2 rounded-full bg-slate-400"></span>
+             <span class="text-slate-600">Vehicle</span>
+             ${chip(i.vehicle_plate || '—')}
+           </div>`
+        : '';
+      const idChip = idNum ? chip(`ID: ${idNum}`) : '';
+
+      result.innerHTML = `
+        <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+          <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
+                <span class="text-sm font-semibold tracking-wide">${toneLabel}</span>
+              </div>
+              <div class="flex items-center gap-2">${idChip}</div>
+            </div>
+          </div>
+
+          <div class="p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">Guest</div>
+                <div class="text-sm font-medium text-slate-900">${i.guest_name}</div>
+                <div class="text-xs text-slate-500">National ID</div>
+                <div class="text-sm text-slate-700">${i.national_id}</div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">Property & Room</div>
+                <div class="text-sm font-medium text-slate-900">${i.property}</div>
+                <div class="text-sm text-slate-700">${chip(i.room)}</div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">Stay Window</div>
+                <div class="text-sm text-slate-900">${fmtDT(i.check_in)}</div>
+                <div class="text-sm text-slate-700">→ ${fmtDT(i.check_out)}</div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">Party</div>
+                <div class="flex items-center gap-2">
+                  ${chip(`${i.guests_count} ${i.guests_count === 1 ? 'guest' : 'guests'}`)}
+                  ${vehicle}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 py-3 bg-slate-50 border-t border-slate-200">
+            <div class="text-xs text-slate-500">
+              Booking #${i.booking_id} • Verified now
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Deny / No info — include explicit "scan again" guidance when no ID was detected server-side
+    const noId = json.reason === 'ocr_no_id_detected' || (!idNum && !json.info);
+    if (noId) {
+      glow('fail'); // red pulse on the camera box
+    }
+
+    result.innerHTML = `
+      <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
+          <div class="flex items-center gap-2">
+            <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
+            <span class="text-sm font-semibold">${toneLabel}</span>
+            ${idNum ? `<span class="text-xs text-slate-600">for <span class="font-medium">${idNum}</span></span>` : ''}
+          </div>
+        </div>
+        <div class="p-4 space-y-3">
+          <p class="text-sm text-slate-700">
+            ${noId ? 'No ID Number detected. Please hold the ID steady and scan again.' : (json.message || 'No active booking found.')}
+          </p>
+
+          ${noId ? `
+            <ul class="text-xs text-slate-500 list-disc pl-4 space-y-1">
+              <li>Fill the frame with the ID number area</li>
+              <li>Ensure good lighting (no glare)</li>
+              <li>Hold steady for a second</li>
+            </ul>
+          ` : ''}
+
+          ${json.debug?.extracted_national_id ? `<p class="mt-2 text-xs text-slate-500">Detected: ${json.debug.extracted_national_id || '—'}</p>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // auto-scan loop
+  setInterval(() => autoScan().catch(()=>{}), 800);
+
+  // manual submit -> one-shot send, always attach snapshot
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await sendOnce({ detectedId: hiddenDet.value, attachSnapshot: true });
+  });
 })();
 </script>
-
 {% endblock %}

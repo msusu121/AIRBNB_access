@@ -1,0 +1,43 @@
+RAW:
+gb Ra ' 4
+> AN Shift |
+: El Ctrl <- v
+af «)) Oy
+JAMHURI YA KENYA ¢)a/a REPUBLIC OF KENYA
+ccna. meer: 254967156. Wes uteh< 37074687
+FULL NAMES T 1 ? . Zami
+TAN DUNCAN NY Se aN as Son
+DATE-GF BIRTH \y ae \ rid
+SEX ‘ y G } K
+MALE AN
+OISTRICT OF BIRTH u "
+KINANGOP
+PLACE OF ISSUE
+, ONGATA RONGAI
+DATE OF ISSUE scsi uy,
+18. 04. 2023 ead i) i}
+‘ HOLDER'S SIGN ih j YAS i i im
+| GOs : a
+
+NORM:
+9b Ra ' 4
+> AN 5hift 1
+: E1 Ctr1 <- v
+af «)) 0y
+JAMHUR1 YA KENYA ¢)a/a REPU8L1C 0F KENYA
+ccna. meer: 254967156. We5 uteh< 37074687
+FULL NAME5 T 1 ? . 2ami
+TAN 0UNCAN NY 5e aN a5 50n
+0ATE-GF 81RTH \y ae \ rid
+5EX ‘ y G } K
+MALE AN
+015TR1CT 0F 81RTH u "
+K1NANG0P
+PLACE 0F 155UE
+, 0NGATA R0NGA1
+0ATE 0F 155UE 5c5i uy,
+18. 04. 2023 ead i) i}
+‘ H0L0ER'5 51GN ih j YA5 i i im
+1 G05 : a
+
+FOUND:37074687
