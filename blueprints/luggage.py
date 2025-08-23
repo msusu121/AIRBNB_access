@@ -1,4 +1,3 @@
-
 # blueprints/luggage.py
 import os
 import io
@@ -7,7 +6,7 @@ from datetime import datetime
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    flash, jsonify, current_app, send_file
+    flash, jsonify, current_app, send_file, send_from_directory
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -30,7 +29,7 @@ bp = Blueprint("luggage", __name__, url_prefix="/luggage")
 # ---------------- Permissions ----------------
 
 def _can_view():
-    """Admin or Host can view lists."""
+    """Admin or Host can view lists/details (Admin read-only; Host manages)."""
     return current_user.is_authenticated and current_user.role in (ROLE_ADMIN, ROLE_HOST)
 
 def _host_only():
@@ -83,12 +82,12 @@ def detail(lug_id: int):
         .first_or_404()
     )
 
-    # fetch recent scans for this luggage
     scans = (
         LuggageScanLog.query
         .filter(LuggageScanLog.luggage_id == lug_id)
         .order_by(LuggageScanLog.id.desc())
-        .limit(50).all()
+        .limit(50)
+        .all()
     )
 
     luggage, booking, room, guest, prop = data
@@ -107,7 +106,7 @@ def new():
         flash("Only hosts can register luggage.", "error")
         return redirect(url_for("luggage.list_"))
 
-    # Show recent/upcoming bookings to attach luggage to
+    # Recent/upcoming bookings to attach luggage to
     bookings = (
         db.session.query(Booking, Room, Guest, Property)
         .join(Room, Booking.room_id == Room.id)
@@ -145,7 +144,7 @@ def create():
     # generate QR token
     qr_token = secrets.token_urlsafe(16)
 
-    # optional photo upload
+    # optional photo upload -> store WEB path (/uploads/luggage/...)
     photo_path = None
     if photo and photo.filename:
         upload_dir = os.path.join(current_app.root_path, "uploads", "luggage")
@@ -153,8 +152,7 @@ def create():
         fname = datetime.utcnow().strftime("%Y%m%d%H%M%S_") + secure_filename(photo.filename)
         full = os.path.join(upload_dir, fname)
         photo.save(full)
-        # store path relative to app root for portability
-        photo_path = full.replace(current_app.root_path, "")
+        photo_path = f"/uploads/luggage/{fname}"
 
     lug = Luggage(
         booking_id=booking.id,
@@ -193,7 +191,6 @@ def unblock(lug_id: int):
         return redirect(url_for("luggage.list_"))
 
     lug = Luggage.query.get_or_404(lug_id)
-    # if it hasn't exited yet, put back to pending; otherwise keep exited
     lug.status = "pending" if lug.status != "exited" else "exited"
     db.session.commit()
     flash("Luggage unblocked.", "success")
@@ -214,7 +211,7 @@ def delete(lug_id: int):
     return redirect(url_for("luggage.list_"))
 
 
-# ---------------- QR image (PNG) ----------------
+# ---------------- QR image (PNG) & Download ----------------
 
 @bp.get("/qr/<token>.png")
 @login_required
@@ -229,6 +226,35 @@ def qr_png(token: str):
     img.save(bio, format="PNG")
     bio.seek(0)
     return send_file(bio, mimetype="image/png", download_name=f"luggage_{lug.id}.png")
+
+
+@bp.get("/qr/<token>/download")
+@login_required
+def qr_download(token: str):
+    """Force download of the QR PNG."""
+    if qrcode is None:
+        return "qrcode library not installed. pip install qrcode[pil]", 500
+    lug = Luggage.query.filter_by(qr_token=token).first_or_404()
+    img = qrcode.make(token, image_factory=PilImage, box_size=10, border=2)
+    bio = io.BytesIO()
+    img.save(bio, format="PNG")
+    bio.seek(0)
+    return send_file(
+        bio,
+        mimetype="image/png",
+        as_attachment=True,
+        download_name=f"luggage_{lug.id}.png"
+    )
+
+
+# ---------------- Serve uploaded luggage photos ----------------
+
+@bp.get("/uploads/luggage/<path:fname>")
+@login_required
+def luggage_uploads(fname: str):
+    """Serve uploaded luggage photos saved under /uploads/luggage."""
+    folder = os.path.join(current_app.root_path, "uploads", "luggage")
+    return send_from_directory(folder, fname)
 
 
 # ---------------- Guard: scanner page & scan API ----------------
@@ -310,7 +336,7 @@ def guard_scan_post():
         "luggage_id": luggage.id,
         "label": luggage.label,
         "size": luggage.size,
-        "photo": luggage.photo_path,
+        "photo": luggage.photo_path,            # web path
         "status": luggage.status,
         "booking_id": booking.id,
         "guest_name": guest.full_name,

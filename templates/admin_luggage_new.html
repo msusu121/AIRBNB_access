@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block title %}New Luggage{% endblock %}
 {% block content %}
-<div class="bg-white rounded-2xl shadow-sm p-6 max-w-2xl">
+<div class="bg-white rounded-2xl shadow-sm p-6 max-w-3xl">
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-semibold">Register Luggage</h1>
     <a href="{{ url_for('luggage.list_') }}" class="text-sm text-slate-600 hover:underline">Back to list</a>
   </div>
 
-  <form action="{{ url_for('luggage.create') }}" method="post" enctype="multipart/form-data" class="space-y-4">
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
     <div>
-      <label class="text-sm text-slate-600">Booking</label>
+      <label class="text-sm">Booking</label>
       <select name="booking_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+        <option value="">Select booking…</option>
         {% for b, room, guest, prop in bookings %}
           <option value="{{ b.id }}">
             #{{ b.id }} — {{ guest.full_name }} • {{ prop.name }} / {{ room.name }} ({{ b.check_in }} → {{ b.check_out }})
@@ -19,13 +20,13 @@
       </select>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="grid sm:grid-cols-2 gap-4">
       <div>
-        <label class="text-sm text-slate-600">Label</label>
-        <input type="text" name="label" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="e.g. Black Samsonite 28”" required>
+        <label class="text-sm">Label</label>
+        <input name="label" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="e.g. Black Samsonite 24”" required>
       </div>
       <div>
-        <label class="text-sm text-slate-600">Size</label>
+        <label class="text-sm">Size</label>
         <select name="size" class="w-full rounded-xl border border-slate-300 px-3 py-2">
           <option value="small">Small</option>
           <option value="medium" selected>Medium</option>
@@ -36,12 +37,13 @@
     </div>
 
     <div>
-      <label class="text-sm text-slate-600">Photo (optional)</label>
+      <label class="text-sm">Photo (optional)</label>
       <input type="file" name="photo" accept="image/*" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+      <p class="text-xs text-slate-500 mt-1">Helpful for guards to visually confirm the item.</p>
     </div>
 
     <div class="pt-2">
-      <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white">Create & Generate QR</button>
+      <button class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">Create & Generate QR</button>
     </div>
   </form>
 </div>
