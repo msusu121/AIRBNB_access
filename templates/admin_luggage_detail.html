@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Luggage #{{ luggage.id }}{% endblock %}
+{% block content %}
+<div class="grid md:grid-cols-3 gap-4">
+  <div class="md:col-span-2 bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-semibold">Luggage #{{ luggage.id }}</h1>
+      <a href="{{ url_for('luggage.list_') }}" class="text-sm text-slate-600 hover:underline">Back to list</a>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Label</div>
+        <div class="text-sm font-medium">{{ luggage.label }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Size</div>
+        <div class="text-sm capitalize">{{ luggage.size }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Status</div>
+        <div>
+          {% if luggage.status == 'pending' %}
+            <span class="px-2 py-1 text-xs rounded-lg bg-amber-100 text-amber-800">Pending</span>
+          {% elif luggage.status == 'exited' %}
+            <span class="px-2 py-1 text-xs rounded-lg bg-emerald-100 text-emerald-800">Exited</span>
+          {% elif luggage.status == 'blocked' %}
+            <span class="px-2 py-1 text-xs rounded-lg bg-rose-100 text-rose-800">Blocked</span>
+          {% else %}
+            <span class="px-2 py-1 text-xs rounded-lg bg-slate-100 text-slate-700">{{ luggage.status }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Created</div>
+        <div class="text-sm">{{ luggage.created_at }}</div>
+      </div>
+
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Guest</div>
+        <div class="text-sm font-medium">{{ guest.full_name }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Stay</div>
+        <div class="text-sm">{{ booking.check_in }} → {{ booking.check_out }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Property / Room</div>
+        <div class="text-sm">{{ prop.name }} • {{ room.name }}</div>
+      </div>
+    </div>
+
+    {% if luggage.photo_path %}
+      <div class="mt-4">
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Photo</div>
+        <img src="{{ luggage.photo_path }}" alt="Luggage photo" class="rounded-xl ring-1 ring-slate-200 max-h-64 object-contain bg-slate-50">
+      </div>
+    {% endif %}
+
+    <div class="mt-6">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">QR Code</div>
+      <div class="flex items-start gap-4">
+        <img src="{{ url_for('luggage.qr_png', token=luggage.qr_token) }}" alt="QR" class="bg-white p-2 rounded-xl ring-1 ring-slate-200">
+        <div class="space-y-2">
+          <div class="text-sm">Token: <code class="px-1.5 py-0.5 bg-slate-100 rounded">{{ luggage.qr_token }}</code></div>
+          <button onclick="window.print()" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">Print</button>
+        </div>
+      </div>
+    </div>
+
+    {% if current_user.role == 'host' %}
+      <div class="mt-6 flex flex-wrap gap-2">
+        {% if luggage.status != 'blocked' %}
+          <form action="{{ url_for('luggage.block', lug_id=luggage.id) }}" method="post">
+            <button class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-sm">Block</button>
+          </form>
+        {% endif %}
+        {% if luggage.status == 'blocked' %}
+          <form action="{{ url_for('luggage.unblock', lug_id=luggage.id) }}" method="post">
+            <button class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm">Unblock</button>
+          </form>
+        {% endif %}
+        <form action="{{ url_for('luggage.delete', lug_id=luggage.id) }}" method="post" onsubmit="return confirm('Delete this luggage?');">
+          <button class="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-800 text-sm">Delete</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <h2 class="text-sm font-semibold mb-3">Scan History</h2>
+    <div class="space-y-2 max-h-[480px] overflow-auto pr-1">
+      {% for s in scans %}
+        <div class="flex items-center justify-between px-3 py-2 rounded-xl ring-1 ring-slate-200">
+          <div class="text-sm">
+            <div class="font-medium">{{ s.decision|capitalize }}</div>
+            <div class="text-xs text-slate-500">{{ s.note }}</div>
+          </div>
+          <div class="text-xs text-slate-500">{{ s.created_at }}</div>
+        </div>
+      {% else %}
+        <div class="text-sm text-slate-500">No scans yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

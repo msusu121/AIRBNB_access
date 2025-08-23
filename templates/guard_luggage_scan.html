@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Luggage Scanner{% endblock %}
+{% block content %}
+<div class="grid md:grid-cols-2 gap-4">
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <h1 class="text-xl font-semibold">Luggage Scanner (QR)</h1>
+
+    <form id="scanForm" class="space-y-3 mt-3">
+      <label class="text-sm">Checkpoint</label>
+      <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+        {% for c in checkpoints %}
+          <option value="{{ c.id }}">{{ c.property.name }} – {{ c.name }}</option>
+        {% endfor %}
+      </select>
+
+      <div>
+        <label class="text-sm">Live camera (rear)</label>
+        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition relative">
+          <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button id="startBtn" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Start Camera</button>
+          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Capture</button>
+          <input id="qrManual" type="text" placeholder="Paste QR token manually…" class="flex-1 rounded-xl border border-slate-300 px-3 py-2">
+          <button id="submitBtn" type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white">Check</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="result" class="bg-white rounded-2xl shadow-sm p-6">
+    <p class="text-sm text-slate-500">Scan result will appear here.</p>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<!-- jsQR (QR decode) -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+(function(){
+  const video   = document.getElementById('video');
+  const canvas  = document.getElementById('canvas');
+  const startBtn= document.getElementById('startBtn');
+  const snap    = document.getElementById('snap');
+  const form    = document.getElementById('scanForm');
+  const result  = document.getElementById('result');
+  const toastBox= document.getElementById('toast');
+  const qrManual= document.getElementById('qrManual');
+
+  function toast(msg, ok=true, ms=1600) {
+    const el = document.createElement('div');
+    el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
+    el.textContent = msg;
+    toastBox.appendChild(el);
+    setTimeout(()=>{ el.classList.add('opacity-0','transition','duration-500'); }, ms-500);
+    setTimeout(()=>{ el.remove(); }, ms);
+  }
+
+  async function startRear() {
+    const tries = [
+      { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      { video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
+    ];
+    for (const c of tries) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(c);
+        video.srcObject = stream;
+        await new Promise(r => video.onloadedmetadata = r);
+        toast('Camera ready ✅');
+        return;
+      } catch(e) {}
+    }
+    toast('Rear camera not available', false);
+  }
+
+  startBtn.addEventListener('click', () => startRear());
+
+  function getFrameImageData() {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return null;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    return ctx.getImageData(0, 0, w, h);
+  }
+
+  function renderResult(json) {
+    const allowed = json.decision === 'allow';
+    const toneBox = allowed ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-50 text-rose-800 border-rose-200';
+    const toneDot = allowed ? 'bg-emerald-500' : 'bg-rose-500';
+    const toneLabel = allowed ? 'ALLOWED' : 'DENIED';
+
+    if (json.info) {
+      const i = json.info;
+      const photo = i.photo ? `<img src="${i.photo}" class="w-28 h-28 object-cover rounded-xl ring-1 ring-slate-200 bg-slate-50">` : '';
+      result.innerHTML = `
+        <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+          <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
+              <span class="text-sm font-semibold">${toneLabel}</span>
+            </div>
+          </div>
+          <div class="p-4 space-y-3">
+            <div class="flex items-start gap-4">
+              ${photo}
+              <div class="text-sm">
+                <div><span class="text-slate-500">Label:</span> <span class="font-medium">${i.label}</span></div>
+                <div><span class="text-slate-500">Size:</span> ${i.size}</div>
+                <div><span class="text-slate-500">Status:</span> ${i.status}</div>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 text-sm">
+              <div><span class="text-slate-500">Guest:</span> <span class="font-medium">${i.guest_name}</span></div>
+              <div><span class="text-slate-500">Room:</span> ${i.room}</div>
+              <div><span class="text-slate-500">Property:</span> ${i.property}</div>
+              <div><span class="text-slate-500">Stay:</span> ${new Date(i.check_in).toLocaleString()} → ${new Date(i.check_out).toLocaleString()}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    result.innerHTML = `
+      <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
+          <div class="flex items-center gap-2">
+            <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
+            <span class="text-sm font-semibold">${toneLabel}</span>
+          </div>
+        </div>
+        <div class="p-4">
+          <p class="text-sm text-slate-700">${json.message || 'Not authorized.'}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  async function sendToken(token) {
+    if (!token) { toast('No token', false); return; }
+    const fd = new FormData(form);
+    fd.append('qr_token', token);
+    try {
+      const resp = await fetch('/luggage/scan', { method: 'POST', body: fd });
+      const json = await resp.json();
+      renderResult(json);
+      toast(json.decision === 'allow' ? 'EXIT ALLOWED' : 'EXIT DENIED', json.decision === 'allow');
+    } catch (e) {
+      console.error(e); toast('Network error', false);
+    }
+  }
+
+  // Capture and try to decode QR
+  snap.addEventListener('click', () => {
+    const img = getFrameImageData();
+    if (!img) { toast('Camera not ready', false); return; }
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+    if (code && code.data) {
+      qrManual.value = code.data.trim();
+      toast('QR detected ✅');
+      sendToken(qrManual.value);
+    } else {
+      toast('No QR found, try again', false);
+    }
+  });
+
+  // Manual submit
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendToken(qrManual.value.trim());
+  });
+})();
+</script>
+{% endblock %}

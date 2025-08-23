@@ -3,20 +3,28 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import asc
-from models import db, User, Property, Room, Checkpoint, ROLE_ADMIN
+from models import db, User, Property, Room, Checkpoint, ROLE_ADMIN, ROLE_HOST
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-def _admin_only():
-    return current_user.is_authenticated and current_user.role == ROLE_ADMIN
+# -------- Permissions helpers ----------
+def _can_view():
+    # Admin OR Host can view lists
+    return current_user.is_authenticated and current_user.role in (ROLE_ADMIN, ROLE_HOST)
+
+def _host_only():
+    # Only Host can create/edit/delete
+    return current_user.is_authenticated and current_user.role == ROLE_HOST
+
 
 # ---------- Properties ----------
 @bp.get("/properties")
 @login_required
 def properties_index():
-    if not _admin_only():
+    if not _can_view():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
+
     props = Property.query.order_by(asc(Property.name)).all()
     owners = {u.id: u.name for u in User.query.order_by(asc(User.name)).all()}
     return render_template("admin_properties_list.html", properties=props, owners=owners)
@@ -24,24 +32,27 @@ def properties_index():
 @bp.get("/properties/new")
 @login_required
 def properties_new():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create properties.", "error")
+        return redirect(url_for("admin.properties_index"))
+
     owners = User.query.order_by(User.name.asc()).all()
     return render_template("admin_property_form.html", owners=owners, prop=None)
 
 @bp.post("/properties/new")
 @login_required
 def properties_create():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create properties.", "error")
+        return redirect(url_for("admin.properties_index"))
+
     name = (request.form.get("name") or "").strip()
     address = (request.form.get("address") or "").strip()
     owner_id = int(request.form.get("owner_id"))
     if not name:
         flash("Name is required.", "error")
         return redirect(url_for("admin.properties_new"))
+
     prop = Property(name=name, address=address, owner_id=owner_id)
     db.session.add(prop)
     db.session.commit()
@@ -51,9 +62,10 @@ def properties_create():
 @bp.get("/properties/<int:prop_id>/edit")
 @login_required
 def properties_edit(prop_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit properties.", "error")
+        return redirect(url_for("admin.properties_index"))
+
     prop = Property.query.get_or_404(prop_id)
     owners = User.query.order_by(User.name.asc()).all()
     return render_template("admin_property_form.html", owners=owners, prop=prop)
@@ -61,9 +73,10 @@ def properties_edit(prop_id):
 @bp.post("/properties/<int:prop_id>/edit")
 @login_required
 def properties_update(prop_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit properties.", "error")
+        return redirect(url_for("admin.properties_index"))
+
     prop = Property.query.get_or_404(prop_id)
     prop.name = (request.form.get("name") or "").strip()
     prop.address = (request.form.get("address") or "").strip()
@@ -71,6 +84,7 @@ def properties_update(prop_id):
     if not prop.name:
         flash("Name is required.", "error")
         return redirect(url_for("admin.properties_edit", prop_id=prop.id))
+
     db.session.commit()
     flash("Property updated.", "success")
     return redirect(url_for("admin.properties_index"))
@@ -78,22 +92,25 @@ def properties_update(prop_id):
 @bp.post("/properties/<int:prop_id>/delete")
 @login_required
 def properties_delete(prop_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can delete properties.", "error")
+        return redirect(url_for("admin.properties_index"))
+
     prop = Property.query.get_or_404(prop_id)
     db.session.delete(prop)
     db.session.commit()
     flash("Property deleted.", "success")
     return redirect(url_for("admin.properties_index"))
 
+
 # ---------- Rooms ----------
 @bp.get("/rooms")
 @login_required
 def rooms_index():
-    if not _admin_only():
+    if not _can_view():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
+
     prop_id = request.args.get("property_id", type=int)
     props = Property.query.order_by(Property.name.asc()).all()
     q = Room.query
@@ -105,24 +122,27 @@ def rooms_index():
 @bp.get("/rooms/new")
 @login_required
 def rooms_new():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create rooms.", "error")
+        return redirect(url_for("admin.rooms_index"))
+
     props = Property.query.order_by(Property.name.asc()).all()
     return render_template("admin_room_form.html", props=props, room=None)
 
 @bp.post("/rooms/new")
 @login_required
 def rooms_create():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create rooms.", "error")
+        return redirect(url_for("admin.rooms_index"))
+
     name = (request.form.get("name") or "").strip()
     desc = (request.form.get("desc") or "").strip()
     property_id = int(request.form.get("property_id"))
     if not name:
         flash("Room name is required.", "error")
         return redirect(url_for("admin.rooms_new"))
+
     room = Room(name=name, desc=desc, property_id=property_id)
     db.session.add(room)
     db.session.commit()
@@ -132,9 +152,10 @@ def rooms_create():
 @bp.get("/rooms/<int:room_id>/edit")
 @login_required
 def rooms_edit(room_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit rooms.", "error")
+        return redirect(url_for("admin.rooms_index"))
+
     room = Room.query.get_or_404(room_id)
     props = Property.query.order_by(Property.name.asc()).all()
     return render_template("admin_room_form.html", props=props, room=room)
@@ -142,9 +163,10 @@ def rooms_edit(room_id):
 @bp.post("/rooms/<int:room_id>/edit")
 @login_required
 def rooms_update(room_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit rooms.", "error")
+        return redirect(url_for("admin.rooms_index"))
+
     room = Room.query.get_or_404(room_id)
     room.name = (request.form.get("name") or "").strip()
     room.desc = (request.form.get("desc") or "").strip()
@@ -152,6 +174,7 @@ def rooms_update(room_id):
     if not room.name:
         flash("Room name is required.", "error")
         return redirect(url_for("admin.rooms_edit", room_id=room.id))
+
     db.session.commit()
     flash("Room updated.", "success")
     return redirect(url_for("admin.rooms_index", property_id=room.property_id))
@@ -159,9 +182,10 @@ def rooms_update(room_id):
 @bp.post("/rooms/<int:room_id>/delete")
 @login_required
 def rooms_delete(room_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can delete rooms.", "error")
+        return redirect(url_for("admin.rooms_index"))
+
     room = Room.query.get_or_404(room_id)
     prop_id = room.property_id
     db.session.delete(room)
@@ -169,13 +193,15 @@ def rooms_delete(room_id):
     flash("Room deleted.", "success")
     return redirect(url_for("admin.rooms_index", property_id=prop_id))
 
+
 # ---------- Checkpoints ----------
 @bp.get("/checkpoints")
 @login_required
 def checkpoints_index():
-    if not _admin_only():
+    if not _can_view():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
+
     props = Property.query.order_by(Property.name.asc()).all()
     cps = Checkpoint.query.order_by(Checkpoint.property_id.asc(), Checkpoint.name.asc()).all()
     return render_template("admin_checkpoints_list.html", checkpoints=cps, properties=props)
@@ -183,23 +209,26 @@ def checkpoints_index():
 @bp.get("/checkpoints/new")
 @login_required
 def checkpoints_new():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create checkpoints.", "error")
+        return redirect(url_for("admin.checkpoints_index"))
+
     props = Property.query.order_by(Property.name.asc()).all()
     return render_template("admin_checkpoint_form.html", props=props, cp=None)
 
 @bp.post("/checkpoints/new")
 @login_required
 def checkpoints_create():
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can create checkpoints.", "error")
+        return redirect(url_for("admin.checkpoints_index"))
+
     name = (request.form.get("name") or "").strip()
     property_id = int(request.form.get("property_id"))
     if not name:
         flash("Checkpoint name is required.", "error")
         return redirect(url_for("admin.checkpoints_new"))
+
     cp = Checkpoint(name=name, property_id=property_id)
     db.session.add(cp)
     db.session.commit()
@@ -209,9 +238,10 @@ def checkpoints_create():
 @bp.get("/checkpoints/<int:cp_id>/edit")
 @login_required
 def checkpoints_edit(cp_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit checkpoints.", "error")
+        return redirect(url_for("admin.checkpoints_index"))
+
     cp = Checkpoint.query.get_or_404(cp_id)
     props = Property.query.order_by(Property.name.asc()).all()
     return render_template("admin_checkpoint_form.html", props=props, cp=cp)
@@ -219,15 +249,17 @@ def checkpoints_edit(cp_id):
 @bp.post("/checkpoints/<int:cp_id>/edit")
 @login_required
 def checkpoints_update(cp_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can edit checkpoints.", "error")
+        return redirect(url_for("admin.checkpoints_index"))
+
     cp = Checkpoint.query.get_or_404(cp_id)
     cp.name = (request.form.get("name") or "").strip()
     cp.property_id = int(request.form.get("property_id"))
     if not cp.name:
         flash("Checkpoint name is required.", "error")
         return redirect(url_for("admin.checkpoints_edit", cp_id=cp.id))
+
     db.session.commit()
     flash("Checkpoint updated.", "success")
     return redirect(url_for("admin.checkpoints_index"))
@@ -235,9 +267,10 @@ def checkpoints_update(cp_id):
 @bp.post("/checkpoints/<int:cp_id>/delete")
 @login_required
 def checkpoints_delete(cp_id):
-    if not _admin_only():
-        flash("Unauthorized", "error")
-        return redirect(url_for("home"))
+    if not _host_only():
+        flash("Only hosts can delete checkpoints.", "error")
+        return redirect(url_for("admin.checkpoints_index"))
+
     cp = Checkpoint.query.get_or_404(cp_id)
     db.session.delete(cp)
     db.session.commit()

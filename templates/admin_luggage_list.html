@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Luggage — List{% endblock %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-xl font-semibold">Luggage</h1>
+      <p class="text-sm text-slate-500">Recent registrations (latest 200)</p>
+    </div>
+    {% if current_user.role == 'host' %}
+      <a href="{{ url_for('luggage.new') }}" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Luggage</a>
+    {% endif %}
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500">
+          <th class="py-2">ID</th>
+          <th>Label</th>
+          <th>Size</th>
+          <th>Status</th>
+          <th>Guest</th>
+          <th>Room</th>
+          <th>Property</th>
+          <th>Registered</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for luggage, booking, room, guest, prop in items %}
+        <tr class="border-t">
+          <td class="py-2">{{ luggage.id }}</td>
+          <td class="font-medium">{{ luggage.label }}</td>
+          <td class="capitalize">{{ luggage.size }}</td>
+          <td>
+            {% if luggage.status == 'pending' %}
+              <span class="px-2 py-1 text-xs rounded-lg bg-amber-100 text-amber-800">Pending</span>
+            {% elif luggage.status == 'exited' %}
+              <span class="px-2 py-1 text-xs rounded-lg bg-emerald-100 text-emerald-800">Exited</span>
+            {% elif luggage.status == 'blocked' %}
+              <span class="px-2 py-1 text-xs rounded-lg bg-rose-100 text-rose-800">Blocked</span>
+            {% else %}
+              <span class="px-2 py-1 text-xs rounded-lg bg-slate-100 text-slate-700">{{ luggage.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ guest.full_name }}</td>
+          <td>{{ room.name }}</td>
+          <td>{{ prop.name }}</td>
+          <td>{{ luggage.created_at }}</td>
+          <td>
+            <a href="{{ url_for('luggage.detail', lug_id=luggage.id) }}" class="text-slate-700 hover:underline">View</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="py-6 text-center text-slate-500">No luggage yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

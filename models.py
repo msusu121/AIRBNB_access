@@ -81,3 +81,31 @@ class AccessLog(db.Model):
     checkpoint = db.relationship("Checkpoint")
     guest = db.relationship("Guest")
     booking = db.relationship("Booking")
+
+
+class Luggage(db.Model):
+    __tablename__ = "luggage"
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey("booking.id"), nullable=False, index=True)
+    label = db.Column(db.String(120), nullable=False)         # e.g. "Red Samsonite"
+    size = db.Column(db.String(20), nullable=False)           # small|medium|large|oversize
+    photo_path = db.Column(db.String(255))                    # saved path
+    qr_token = db.Column(db.String(64), unique=True, index=True, nullable=False)
+    status = db.Column(db.String(20), default="pending")      # pending|exited|blocked
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    booking = db.relationship("Booking")
+
+class LuggageScanLog(db.Model):
+    __tablename__ = "luggage_scan_log"
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    guard_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    checkpoint_id = db.Column(db.Integer, db.ForeignKey("checkpoint.id"), nullable=False)
+    luggage_id = db.Column(db.Integer, db.ForeignKey("luggage.id"), nullable=False)
+    decision = db.Column(db.String(20))                       # allow|deny
+    note = db.Column(db.String(255))
+
+    guard = db.relationship("User")
+    checkpoint = db.relationship("Checkpoint")
+    luggage = db.relationship("Luggage")    

@@ -8,47 +8,78 @@
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body class="bg-slate-50 text-slate-900">
+  <!-- Top Nav -->
   <nav class="bg-white shadow-sm sticky top-0 z-40">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <!-- Brand -->
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-2xl bg-slate-900"></div>
-        <a href="/" class="font-semibold">Airbnb Gate Access</a>
+        <a href="{{ url_for('home') }}" class="font-semibold">Airbnb Gate Access</a>
       </div>
 
-      <!-- Admin dropdown (hover) — uses literal paths to avoid BuildError -->
-      {% if current_user.is_authenticated and current_user.role == 'admin' %}
-        <div class="relative group">
-          <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">
-            Admin
-          </button>
-          <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[200px] z-40">
-            <a href="/admin/properties"  class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
-            <a href="/admin/rooms"       class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
-            <a href="/admin/checkpoints" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
-          </div>
-        </div>
-      {% endif %}
-
+      <!-- Middle: Menus -->
       <div class="flex items-center gap-4">
         {% if current_user.is_authenticated %}
-          <a href="/bookings" class="text-sm hover:underline">Bookings</a>
-          {% if current_user.role == "guard" %}
-            <a href="/guard/scan" class="text-sm hover:underline">Guard Scanner</a>
+
+          {# Manage: Admin & Host (read/list pages only) #}
+          {% if current_user.role in ['admin', 'host'] %}
+          <div class="relative group">
+            <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">Manage</button>
+            <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[220px] z-40">
+              <a href="{{ url_for('admin.properties_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
+              <a href="{{ url_for('admin.rooms_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
+              <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
+              <a href="{{ url_for('bookings.index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Bookings</a>
+              <a href="{{ url_for('luggage.list_') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage</a>
+            </div>
+          </div>
           {% endif %}
-          <a href="/logout" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Logout</a>
+
+          {# Host Tools: Host only (create pages) #}
+          {% if current_user.role == 'host' %}
+          <div class="relative group">
+            <button class="px-3 py-1.5 rounded-lg text-sm text-white bg-slate-900">Host Tools</button>
+            <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[220px] z-40">
+              <a href="{{ url_for('admin.properties_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Property</a>
+              <a href="{{ url_for('admin.rooms_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Room</a>
+              <a href="{{ url_for('admin.checkpoints_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Checkpoint</a>
+              <a href="{{ url_for('bookings.new_booking') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Booking</a>
+              <a href="{{ url_for('luggage.new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Luggage</a>
+            </div>
+          </div>
+          {% endif %}
+
+          {# Guard: scanners only #}
+          {% if current_user.role == 'guard' %}
+          <a href="{{ url_for('guard.scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Guest Scanner</a>
+          <a href="{{ url_for('luggage.guard_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Luggage Scanner</a>
+          {% endif %}
+
+        {% endif %}
+      </div>
+
+      <!-- Right: User & Auth -->
+      <div class="flex items-center gap-3">
+        {% if current_user.is_authenticated %}
+          <span class="text-sm text-slate-600">{{ current_user.name }} ({{ current_user.role }})</span>
+          <a href="{{ url_for('auth.logout') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Logout</a>
         {% else %}
-          <a href="/login" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
+          <a href="{{ url_for('auth.login') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
         {% endif %}
       </div>
     </div>
   </nav>
 
+  <!-- Page Content -->
   <main class="max-w-6xl mx-auto p-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="space-y-2">
           {% for category, message in messages %}
-            <div class="p-3 rounded-xl text-sm {% if category == 'error' %}bg-red-100 text-red-800{% elif category == 'success' %}bg-green-100 text-green-800{% else %}bg-slate-100{% endif %}">
+            <div class="p-3 rounded-xl text-sm
+              {% if category == 'error' %} bg-red-100 text-red-800
+              {% elif category == 'success' %} bg-green-100 text-green-800
+              {% else %} bg-slate-100 text-slate-800 {% endif %}">
               {{ message }}
             </div>
           {% endfor %}
