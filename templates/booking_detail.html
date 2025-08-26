@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Booking #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="grid md:grid-cols-3 gap-4">
+  <div class="md:col-span-2 bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-semibold">Booking #{{ booking.id }}</h1>
+      <a href="{{ url_for('bookings.index') }}" class="text-sm text-slate-600 hover:underline">Back</a>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Guest</div>
+        <div class="text-sm font-medium">{{ guest.full_name }}</div>
+        <div class="text-xs text-slate-500">National ID</div>
+        <div class="text-sm">{{ guest.national_id_number }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Room</div>
+        <div class="text-sm">{{ room.name }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Check-in</div>
+        <div class="text-sm">{{ booking.check_in }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Check-out</div>
+        <div class="text-sm">{{ booking.check_out }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Guests</div>
+        <div class="text-sm">{{ booking.guests_count }}</div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-slate-500">Vehicle</div>
+        <div class="text-sm">
+          {% if booking.owns_vehicle %}
+            Yes — Plate: {{ booking.vehicle_plate or '—' }}
+          {% else %}
+            No
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">QR Code</div>
+      {% if booking.qr_token %}
+      <div class="flex items-start gap-4">
+        <img src="{{ url_for('bookings.booking_qr_png', token=booking.qr_token) }}" alt="QR"
+             class="bg-white p-2 rounded-xl ring-1 ring-slate-200">
+        <div class="space-y-2">
+          <div class="text-sm">Token:
+            <code class="px-1.5 py-0.5 bg-slate-100 rounded">{{ booking.qr_token }}</code>
+          </div>
+          <div class="flex gap-2">
+            <a href="{{ url_for('bookings.booking_qr_download', token=booking.qr_token) }}"
+               class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">Download PNG</a>
+            <button onclick="window.print()" class="px-3 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm">Print</button>
+          </div>
+          {% if booking.qr_path %}
+            <div class="text-xs text-slate-500">Saved image: <a class="underline" href="{{ booking.qr_path }}" target="_blank">open</a></div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+        <div class="text-sm text-slate-600">QR not set.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <h2 class="text-sm font-semibold mb-3">Guard Tools</h2>
+    <p class="text-sm mb-3">Send this QR to the guest. Guards can scan it here:</p>
+    <a href="{{ url_for('guard.booking_scan_page') }}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">Open Booking QR Scanner</a>
+  </div>
+</div>
+{% endblock %}

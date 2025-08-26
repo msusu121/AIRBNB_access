@@ -2,178 +2,283 @@
 {% block title %}Luggage Scanner{% endblock %}
 {% block content %}
 <div class="grid md:grid-cols-2 gap-4">
-  <div class="bg-white rounded-2xl shadow-sm p-6">
-    <h1 class="text-xl font-semibold">Luggage Scanner (QR)</h1>
+  <!-- SCANNER -->
+  <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-semibold">Luggage Scanner</h1>
+      <a href="{{ url_for('luggage.list_') }}" class="text-sm text-slate-600 hover:underline">Luggage list</a>
+    </div>
 
-    <form id="scanForm" class="space-y-3 mt-3">
-      <label class="text-sm">Checkpoint</label>
-      <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
-        {% for c in checkpoints %}
-          <option value="{{ c.id }}">{{ c.property.name }} – {{ c.name }}</option>
-        {% endfor %}
-      </select>
-
+    <form id="scanForm" class="space-y-4">
+      <!-- checkpoint -->
       <div>
-        <label class="text-sm">Live camera (rear)</label>
-        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition relative">
+        <label class="text-sm">Checkpoint</label>
+        <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+          {% for c in checkpoints %}
+            <option value="{{ c.id }}">{{ c.property.name }} – {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- mode toggle -->
+      <div class="inline-flex rounded-xl border border-slate-300 overflow-hidden">
+        <button type="button" id="modeCam" class="px-3 py-1.5 text-sm bg-slate-900 text-white">Camera</button>
+        <button type="button" id="modeManual" class="px-3 py-1.5 text-sm hover:bg-slate-50">Manual</button>
+      </div>
+
+      <!-- camera -->
+      <div id="camWrap" class="space-y-2">
+        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 relative">
           <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
-          <canvas id="canvas" class="hidden"></canvas>
+          <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-2/3 h-2/3 rounded-2xl ring-2 ring-emerald-400/60"></div>
+          </div>
         </div>
-        <div class="mt-2 flex gap-2">
-          <button id="startBtn" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Start Camera</button>
-          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Capture</button>
-          <input id="qrManual" type="text" placeholder="Paste QR token manually…" class="flex-1 rounded-xl border border-slate-300 px-3 py-2">
-          <button id="submitBtn" type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white">Check</button>
+        <div class="flex items-center gap-2">
+          <button type="button" id="startBtn" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50"></button>
+          <button type="button" id="stopBtn" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50"></button>
+          <span id="camStatus" class="text-xs text-slate-500">Idle</span>
         </div>
       </div>
+
+      <!-- manual -->
+      <div id="manualWrap" class="hidden space-y-2">
+        <label class="text-sm">QR Token (paste/type)</label>
+        <input type="text" id="qrInput" class="w-full rounded-xl border border-slate-300 px-3 py-2"
+               placeholder="e.g. token-from-qr..." />
+        <p class="text-xs text-slate-500">Tip: you can scan with a phone and paste the decoded token here.</p>
+      </div>
+
+      <input type="hidden" id="qrTokenField" name="qr_token" value="">
+      <button id="submitBtn" type="submit" class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
+        Check Luggage
+      </button>
     </form>
   </div>
 
+  <!-- RESULT -->
   <div id="result" class="bg-white rounded-2xl shadow-sm p-6">
     <p class="text-sm text-slate-500">Scan result will appear here.</p>
   </div>
 </div>
 
+<!-- Toasts -->
 <div id="toast" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-<!-- jsQR (QR decode) -->
+<!-- QR decoder -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
 (function(){
-  const video   = document.getElementById('video');
-  const canvas  = document.getElementById('canvas');
-  const startBtn= document.getElementById('startBtn');
-  const snap    = document.getElementById('snap');
-  const form    = document.getElementById('scanForm');
-  const result  = document.getElementById('result');
-  const toastBox= document.getElementById('toast');
-  const qrManual= document.getElementById('qrManual');
+  const form = document.getElementById('scanForm');
+  const video = document.getElementById('video');
+  const videoWrap = document.getElementById('videoWrap');
+  const camStatus = document.getElementById('camStatus');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const qrTokenField = document.getElementById('qrTokenField');
+  const resultBox = document.getElementById('result');
+  const toastBox = document.getElementById('toast');
 
-  function toast(msg, ok=true, ms=1600) {
+  const modeCamBtn = document.getElementById('modeCam');
+  const modeManualBtn = document.getElementById('modeManual');
+  const camWrap = document.getElementById('camWrap');
+  const manualWrap = document.getElementById('manualWrap');
+  const qrInput = document.getElementById('qrInput');
+
+  let stream = null;
+  let scanning = false;
+  let lastToken = '';
+
+  // --- helpers ---
+  function toast(msg, ok=true, ms=1500){
     const el = document.createElement('div');
-    el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
+    el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok ? 'bg-slate-900 text-white' : 'bg-rose-600 text-white'}`;
     el.textContent = msg;
     toastBox.appendChild(el);
     setTimeout(()=>{ el.classList.add('opacity-0','transition','duration-500'); }, ms-500);
     setTimeout(()=>{ el.remove(); }, ms);
   }
 
-  async function startRear() {
-    const tries = [
-      { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
-      { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
-      { video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
-    ];
-    for (const c of tries) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia(c);
-        video.srcObject = stream;
-        await new Promise(r => video.onloadedmetadata = r);
-        toast('Camera ready ✅');
-        return;
-      } catch(e) {}
+  function setMode(mode){
+    // mode: "cam" | "manual"
+    [modeCamBtn, modeManualBtn].forEach(b=>b.classList.remove('bg-slate-900','text-white'));
+    camWrap.classList.add('hidden');
+    manualWrap.classList.add('hidden');
+
+    if(mode === 'cam'){
+      modeCamBtn.classList.add('bg-slate-900','text-white');
+      camWrap.classList.remove('hidden');
+    } else {
+      modeManualBtn.classList.add('bg-slate-900','text-white');
+      manualWrap.classList.remove('hidden');
     }
-    toast('Rear camera not available', false);
+  }
+  modeCamBtn.onclick = ()=> setMode('cam');
+  modeManualBtn.onclick = ()=> setMode('manual');
+  setMode('cam');
+
+  async function startCamera(){
+    try {
+      camStatus.textContent = 'Starting…';
+      const tries = [
+        { video: { facingMode: { exact: 'environment' } } },
+        { video: { facingMode: 'environment' } },
+        { video: true }
+      ];
+      for(const c of tries){
+        try { stream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e){}
+      }
+      if(!stream) throw new Error('No camera');
+      video.srcObject = stream;
+      await video.play();
+      scanning = true;
+      camStatus.textContent = 'Scanning…';
+      toast('Camera ready ✅');
+      scanLoop();
+    } catch(e){
+      camStatus.textContent = 'Camera unavailable';
+      toast('Camera not available', false);
+    }
   }
 
-  startBtn.addEventListener('click', () => startRear());
-
-  function getFrameImageData() {
-    const w = video.videoWidth, h = video.videoHeight;
-    if (!w || !h) return null;
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, w, h);
-    return ctx.getImageData(0, 0, w, h);
+  function stopCamera(){
+    scanning = false;
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+    video.srcObject = null;
+    camStatus.textContent = 'Stopped';
   }
 
-  function renderResult(json) {
+  startBtn.onclick = startCamera;
+  stopBtn.onclick = stopCamera;
+
+  // decode frame
+  const workCanvas = document.createElement('canvas');
+  const wctx = workCanvas.getContext('2d');
+
+  function scanLoop(){
+    if(!scanning) return;
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      workCanvas.width = video.videoWidth;
+      workCanvas.height = video.videoHeight;
+      wctx.drawImage(video, 0, 0, workCanvas.width, workCanvas.height);
+      const img = wctx.getImageData(0,0,workCanvas.width,workCanvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      if(code && code.data){
+        const token = code.data.trim();
+        if(token && token !== lastToken){
+          lastToken = token;
+          qrTokenField.value = token;
+          glow('ok');
+          toast('QR detected');
+          submitToServer();
+        }
+      }
+    }
+    requestAnimationFrame(scanLoop);
+  }
+
+  function glow(state){
+    videoWrap.classList.remove('ring-rose-400','animate-pulse','ring-2','ring-emerald-400');
+    if(state==='ok'){
+      videoWrap.classList.add('ring-2','ring-emerald-400');
+      setTimeout(()=>videoWrap.classList.remove('ring-2','ring-emerald-400'), 900);
+    } else if (state==='fail'){
+      videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse');
+      setTimeout(()=>videoWrap.classList.remove('ring-2','ring-rose-400','animate-pulse'), 1200);
+    }
+  }
+
+  // manual entry keeps hidden field in sync
+  qrInput.addEventListener('input', () => {
+    qrTokenField.value = qrInput.value.trim();
+  });
+
+  // submit
+  form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    submitToServer();
+  });
+
+  async function submitToServer(){
+    const token = qrTokenField.value.trim();
+    const checkpoint = form.querySelector('select[name="checkpoint_id"]').value;
+    if(!token){
+      toast('No QR token', false);
+      glow('fail');
+      return;
+    }
+    try {
+      const fd = new FormData();
+      fd.append('checkpoint_id', checkpoint);
+      fd.append('qr_token', token);
+
+      const resp = await fetch('/luggage/scan', { method: 'POST', body: fd });
+      const json = await resp.json();
+
+      renderResult(json);
+      if(json.decision === 'allow'){ glow('ok'); }
+      else { glow('fail'); }
+    } catch (e) {
+      console.error(e);
+      toast('Network error', false);
+    }
+  }
+
+  function renderResult(json){
     const allowed = json.decision === 'allow';
     const toneBox = allowed ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             : 'bg-rose-50 text-rose-800 border-rose-200';
     const toneDot = allowed ? 'bg-emerald-500' : 'bg-rose-500';
     const toneLabel = allowed ? 'ALLOWED' : 'DENIED';
 
-    if (json.info) {
+    if(json.info){
       const i = json.info;
-      const photo = i.photo ? `<img src="${i.photo}" class="w-28 h-28 object-cover rounded-xl ring-1 ring-slate-200 bg-slate-50">` : '';
-      result.innerHTML = `
+      resultBox.innerHTML = `
         <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
           <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
             <div class="flex items-center gap-2">
               <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
-              <span class="text-sm font-semibold">${toneLabel}</span>
+              <span class="text-sm font-semibold tracking-wide">${toneLabel}</span>
             </div>
           </div>
           <div class="p-4 space-y-3">
-            <div class="flex items-start gap-4">
-              ${photo}
-              <div class="text-sm">
-                <div><span class="text-slate-500">Label:</span> <span class="font-medium">${i.label}</span></div>
-                <div><span class="text-slate-500">Size:</span> ${i.size}</div>
-                <div><span class="text-slate-500">Status:</span> ${i.status}</div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <div class="text-xs uppercase tracking-wider text-slate-500">Luggage</div>
+                <div class="text-sm font-medium">#${i.luggage_id} • ${i.label}</div>
+                <div class="text-xs text-slate-500 capitalize">${i.size}</div>
+                <div class="mt-1 text-xs">Status: <span class="font-medium">${i.status}</span></div>
+              </div>
+              <div>
+                <div class="text-xs uppercase tracking-wider text-slate-500">Guest / Stay</div>
+                <div class="text-sm font-medium">${i.guest_name}</div>
+                <div class="text-xs text-slate-500">${i.property} • ${i.room}</div>
               </div>
             </div>
-            <div class="grid sm:grid-cols-2 gap-3 text-sm">
-              <div><span class="text-slate-500">Guest:</span> <span class="font-medium">${i.guest_name}</span></div>
-              <div><span class="text-slate-500">Room:</span> ${i.room}</div>
-              <div><span class="text-slate-500">Property:</span> ${i.property}</div>
-              <div><span class="text-slate-500">Stay:</span> ${new Date(i.check_in).toLocaleString()} → ${new Date(i.check_out).toLocaleString()}</div>
-            </div>
+            ${i.photo ? `<img src="${i.photo}" class="rounded-xl ring-1 ring-slate-200 max-h-48 object-contain bg-slate-50">` : ''}
           </div>
         </div>
       `;
       return;
     }
 
-    result.innerHTML = `
+    resultBox.innerHTML = `
       <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
+        <div class="px-4 py-3 ${allowed ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'} border-b">
           <div class="flex items-center gap-2">
             <span class="h-2.5 w-2.5 rounded-full ${toneDot}"></span>
             <span class="text-sm font-semibold">${toneLabel}</span>
           </div>
         </div>
         <div class="p-4">
-          <p class="text-sm text-slate-700">${json.message || 'Not authorized.'}</p>
+          <p class="text-sm text-slate-700">${json.message || 'QR not recognized.'}</p>
         </div>
       </div>
     `;
   }
 
-  async function sendToken(token) {
-    if (!token) { toast('No token', false); return; }
-    const fd = new FormData(form);
-    fd.append('qr_token', token);
-    try {
-      const resp = await fetch('/luggage/scan', { method: 'POST', body: fd });
-      const json = await resp.json();
-      renderResult(json);
-      toast(json.decision === 'allow' ? 'EXIT ALLOWED' : 'EXIT DENIED', json.decision === 'allow');
-    } catch (e) {
-      console.error(e); toast('Network error', false);
-    }
-  }
-
-  // Capture and try to decode QR
-  snap.addEventListener('click', () => {
-    const img = getFrameImageData();
-    if (!img) { toast('Camera not ready', false); return; }
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
-    if (code && code.data) {
-      qrManual.value = code.data.trim();
-      toast('QR detected ✅');
-      sendToken(qrManual.value);
-    } else {
-      toast('No QR found, try again', false);
-    }
-  });
-
-  // Manual submit
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    sendToken(qrManual.value.trim());
-  });
+  // auto-start camera on load (best effort)
+  startCamera();
 })();
 </script>
 {% endblock %}

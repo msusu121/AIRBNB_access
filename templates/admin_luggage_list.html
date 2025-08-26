@@ -17,19 +17,22 @@
           <th class="py-2">ID</th>
           <th>Label</th>
           <th>Size</th>
+          <th>Owner</th>
           <th>Status</th>
-          <th>Guest</th>
+          <th>Guest / Host</th>
           <th>Property / Room</th>
           <th>Created</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-      {% for lug, b, room, guest, prop in items %}
+      {% for lug, b, room, guest, prop, host_user in items %}
+
         <tr class="border-t">
           <td class="py-2">{{ lug.id }}</td>
           <td>{{ lug.label }}</td>
           <td class="capitalize">{{ lug.size }}</td>
+          <td class="capitalize">{{ lug.owner_type or 'guest' }}</td>
           <td>
             {% if lug.status == 'pending' %}
               <span class="px-2 py-1 text-xs rounded-lg bg-amber-100 text-amber-800">Pending</span>
@@ -41,15 +44,27 @@
               <span class="px-2 py-1 text-xs rounded-lg bg-slate-100 text-slate-700">{{ lug.status }}</span>
             {% endif %}
           </td>
-          <td>{{ guest.full_name }}</td>
-          <td>{{ prop.name }} • {{ room.name }}</td>
+          <td>
+            {% if lug.owner_type == 'guest' %}
+              {{ guest.full_name if guest else '—' }}
+            {% else %}
+              {{ host_user.name if host_user else 'Host' }}
+            {% endif %}
+          </td>
+          <td>
+            {% if lug.owner_type == 'guest' %}
+              {{ prop.name if prop else '—' }}{% if room %} • {{ room.name }}{% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td>{{ lug.created_at }}</td>
           <td>
             <a href="{{ url_for('luggage.detail', lug_id=lug.id) }}" class="text-slate-700 hover:underline">View</a>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="8" class="py-6 text-center text-slate-500">No luggage yet.</td></tr>
+        <tr><td colspan="9" class="py-6 text-center text-slate-500">No luggage yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>

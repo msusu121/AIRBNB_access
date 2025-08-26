@@ -1,10 +1,19 @@
 {% extends "base.html" %}
+{% block title %}Guard Scanner{% endblock %}
 {% block content %}
 <div class="grid md:grid-cols-2 gap-4">
   <div class="bg-white rounded-2xl shadow-sm p-6">
-    <h1 class="text-xl font-semibold">Guard Scanner</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-semibold">Guard Scanner</h1>
 
-    <form id="scanForm" class="space-y-3" enctype="multipart/form-data">
+      <!-- Mode toggle -->
+      <div class="inline-flex rounded-xl border border-slate-300 overflow-hidden">
+        <button id="btnScan"   type="button" class="px-3 py-1.5 text-sm bg-slate-900 text-white">Scan</button>
+        <button id="btnManual" type="button" class="px-3 py-1.5 text-sm hover:bg-slate-50">Manual</button>
+      </div>
+    </div>
+
+    <form id="scanForm" class="space-y-3 mt-3">
       <label class="text-sm">Checkpoint</label>
       <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
         {% for c in checkpoints %}
@@ -12,35 +21,30 @@
         {% endfor %}
       </select>
 
-      <!-- Manual ID -->
-      <div>
-        <label class="text-sm">Manual National ID (optional)</label>
+      <!-- Manual ID (hidden in Scan mode) -->
+      <div id="manualWrap" class="hidden">
+        <label class="text-sm">Manual National ID</label>
         <input id="manualId" type="text" inputmode="numeric" pattern="\d*" maxlength="16"
                class="w-full rounded-xl border border-slate-300 px-3 py-2"
-               placeholder="Type ID and press Check Access">
-        <p class="text-xs text-slate-500 mt-1">If filled, we’ll use this ID directly (no photo needed).</p>
+               placeholder="Type 8-digit ID">
+        <p class="text-xs text-slate-500 mt-1">We’ll use this ID directly.</p>
       </div>
 
-      <!-- Upload / Take Photo -->
-      <div>
-        <label class="text-sm">Upload / Take Photo (rear)</label>
-        <input type="file" name="image" accept="image/*" capture="environment"
-               class="w-full rounded-xl border border-slate-300 px-3 py-2">
-      </div>
-
-      <!-- Live camera -->
-      <div>
+      <!-- Live camera (shown in Scan mode) -->
+      <div id="cameraWrap">
         <label class="text-sm">Live camera (rear)</label>
-        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition">
+        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition relative">
+          <!-- High band overlay (top 18%, height 20%) -->
+          <div class="absolute inset-x-0 pointer-events-none" style="top:18%; height:20%;">
+            <div class="w-full h-full ring-2 ring-amber-400/60 rounded"></div>
+          </div>
           <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
         </div>
-        <div class="mt-2 flex gap-2">
-          <button id="snap" type="button" class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">Capture</button>
-          <canvas id="canvas" class="hidden"></canvas>
-        </div>
+        <canvas id="canvas" class="hidden"></canvas>
+        <p class="text-xs text-slate-500 mt-1">Place the ID number within the yellow band, then press “Check Access”.</p>
       </div>
 
-      <!-- hidden field for OCR-detected id -->
+      <!-- hidden (last detected) -->
       <input type="hidden" id="detected_id" name="detected_id" value="">
 
       <button id="submitBtn" type="submit" class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
@@ -65,7 +69,6 @@
   const video       = document.getElementById('video');
   const videoWrap   = document.getElementById('videoWrap');
   const canvas      = document.getElementById('canvas');
-  const snap        = document.getElementById('snap');
   const form        = document.getElementById('scanForm');
   const result      = document.getElementById('result');
   const toastBox    = document.getElementById('toast');
@@ -73,6 +76,33 @@
   const manualId    = document.getElementById('manualId');
   const submitBtn   = document.getElementById('submitBtn');
 
+  const btnScan     = document.getElementById('btnScan');
+  const btnManual   = document.getElementById('btnManual');
+  const cameraWrap  = document.getElementById('cameraWrap');
+  const manualWrap  = document.getElementById('manualWrap');
+
+  let mode = 'scan'; // 'scan' | 'manual'
+  function setMode(newMode){
+    mode = newMode;
+    if (mode === 'scan'){
+      btnScan.classList.add('bg-slate-900','text-white');
+      btnManual.classList.remove('bg-slate-900','text-white');
+      cameraWrap.classList.remove('hidden');
+      manualWrap.classList.add('hidden');
+      startRear();
+    } else {
+      btnManual.classList.add('bg-slate-900','text-white');
+      btnScan.classList.remove('bg-slate-900','text-white');
+      manualWrap.classList.remove('hidden');
+      cameraWrap.classList.add('hidden');
+      stopRear();
+    }
+  }
+  btnScan.addEventListener('click', ()=>setMode('scan'));
+  btnManual.addEventListener('click', ()=>setMode('manual'));
+  setMode('scan');
+
+  // ---------- helpers ----------
   function toast(msg, ok=true, ms=1600) {
     const el = document.createElement('div');
     el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
@@ -89,8 +119,10 @@
     if (state==='fail'){ videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse'); setTimeout(()=>glow('clear'),1200); }
   }
 
-  // Camera
+  // ---------- camera ----------
+  let stream = null;
   async function startRear() {
+    if (stream || mode !== 'scan') return;
     const tries = [
       { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
       { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
@@ -98,7 +130,7 @@
     ];
     for (const c of tries) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(c);
+        stream = await navigator.mediaDevices.getUserMedia(c);
         video.srcObject = stream;
         await new Promise(r => video.onloadedmetadata = r);
         toast('Camera ready ✅');
@@ -107,114 +139,119 @@
     }
     toast('Rear camera not available', false);
   }
+  function stopRear(){
+    if (stream){
+      for (const t of stream.getTracks()) t.stop();
+      stream = null;
+      video.srcObject = null;
+    }
+  }
   await startRear();
 
-  // Capture helper
-  snap?.addEventListener('click', async () => {
-    const blob = await captureFrameBlob();
-    if (!blob) return;
-    const dt = new DataTransfer();
-    dt.items.add(new File([blob], 'capture.jpg', { type: 'image/jpeg' }));
-    const input = form.querySelector('input[name="image"]');
-    input.files = dt.files;
-    toast('Frame captured');
-  });
-  async function captureFrameBlob() {
-    const w = video.videoWidth, h = video.videoHeight;
-    if (!w || !h) { toast('Camera not ready', false); return null; }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-    return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
-  }
-
-  // OCR worker (auto)
+  // ---------- OCR init ----------
   const worker = await Tesseract.createWorker();
   await worker.loadLanguage('eng');
   await worker.initialize('eng');
   await worker.setParameters({ tessedit_char_whitelist:'0123456789', user_defined_dpi:'300' });
-  const normDigits = (s)=>s.replace(/[OoD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/[Zz]/g,'2').replace(/[qg]/g,'9');
 
-  let sending=false, lastSent='';
+  // normalize just for OCR glitches (O→0, I→1, etc.)
+  const normDigits = (s)=>s
+    .replace(/[OoD]/g,'0')
+    .replace(/[Il|!]/g,'1')
+    .replace(/[Ss]/g,'5')
+    .replace(/[Zz]/g,'2')
+    .replace(/[qg]/g,'9');
 
-  async function autoScan() {
-    const w = video.videoWidth, h = video.videoHeight;
-    if (!w || !h || sending) return;
-
-    // if guard typed something, don't override
-    if (manualId.value.trim()) return;
-
-    canvas.width = w; canvas.height = h;
+  function grabTopBandCanvas() {
+    const W = video.videoWidth, H = video.videoHeight;
+    if (!W || !H) return null;
+    // must match overlay: top 18%, height 20%
+    const top   = Math.floor(H * 0.18);
+    const bandH = Math.floor(H * 0.20);
+    canvas.width = W; canvas.height = bandH;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, w, h);
-    const bandH = Math.floor(h * 0.28);
-    const top = Math.floor((h - bandH) / 2);
-    const band = document.createElement('canvas');
-    band.width = w; band.height = bandH;
-    band.getContext('2d').drawImage(canvas, 0, top, w, bandH, 0, 0, w, bandH);
+    ctx.drawImage(video, 0, top, W, bandH, 0, 0, W, bandH);
+    return canvas;
+  }
 
-    const { data } = await worker.recognize(band);
-    const text = normDigits(data.text || '');
-    const m = text.match(/\b\d{8}\b/);
-    if (!m) return;
+  // Build a set of 8-digit strings that come from dotted/slashed dates in the raw OCR
+  function dateDigitSetFromRaw(raw){
+    const out = new Set();
+    // matches like 08.06.1999, 08/06/1999, 08-06-1999
+    const matches = raw.match(/\b(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})\b/g) || [];
+    for (const d of matches){
+      const digits = d.replace(/\D+/g,''); // 08.06.1999 -> 08061999
+      if (digits.length === 8) out.add(digits);
+    }
+    return out;
+  }
 
-    const idNum = m[0];
-    if (idNum === lastSent) return;
+  async function ocrBand(cnv) {
+    const { data } = await worker.recognize(cnv);
+    const rawText      = data.text || '';
+    const normalized   = normDigits(rawText);
+    const digitsOnly   = normalized.replace(/\D+/g,'');     // keep only digits for candidate scan
+    const candidates   = digitsOnly.match(/\d{8}/g) || [];  // all 8-digit runs
 
-    // simple confidence gate
-    let avgConf = 70;
+    // exclude any 8-digit value that came from a dotted/slashed date in the raw OCR
+    const dateDigits = dateDigitSetFromRaw(rawText);
+    const id = candidates.find(d => !dateDigits.has(d)) || '';
+
+    // quick average confidence
+    let avgConf = 0;
     if (Array.isArray(data.words) && data.words.length) {
       const confs = data.words.map(w => w.confidence || 0);
       avgConf = Math.round(confs.reduce((a,b)=>a+b,0)/confs.length);
     }
-    if (avgConf < 60) return;
-
-    hiddenDet.value = idNum;
-    await sendOnce({ detectedId: idNum, attachSnapshot: true });
+    return { id, conf: avgConf };
   }
 
-  async function sendOnce({ detectedId = '', attachSnapshot = false } = {}) {
-    if (sending) return;
-    sending = true; submitBtn.disabled = true;
+  // One-shot detection when pressing "Check Access" (Scan mode)
+  async function detectOnce() {
+    const cnv = grabTopBandCanvas();
+    if (!cnv) return { id:'', conf:0 };
+    const r = await ocrBand(cnv);
+    if (r.id && r.conf >= 50) return r;
+    return { id:'', conf:r.conf||0 };
+  }
 
+  async function sendOnce() {
+    submitBtn.disabled = true;
     try {
       const fd = new FormData();
       fd.append('checkpoint_id', form.querySelector('select[name="checkpoint_id"]').value);
 
-      // Prefer manual text if present
-      const manual = manualId.value.trim();
-      if (manual) {
-        fd.append('detected_id', manual);
-        lastSent = manual;
-      } else if (detectedId) {
-        fd.append('detected_id', detectedId);
-        lastSent = detectedId;
-      } else if (hiddenDet.value) {
-        fd.append('detected_id', hiddenDet.value);
-        lastSent = hiddenDet.value;
-      }
-
-      // Only attach photo if we didn't have manual ID and we want a snapshot
-      if (!manual && attachSnapshot) {
-        const fileInput = form.querySelector('input[name="image"]');
-        if (fileInput.files.length > 0) {
-          fd.append('image', fileInput.files[0]);
-        } else {
-          const blob = await captureFrameBlob();
-          if (blob) fd.append('image', new File([blob], 'auto.jpg', { type: 'image/jpeg' }));
+      let idToUse = '';
+      if (mode === 'manual') {
+        idToUse = (manualId.value || '').trim();
+      } else {
+        toast('Scanning…');
+        const r = await detectOnce();
+        if (r.id) {
+          idToUse = r.id;
+          hiddenDet.value = r.id;
         }
       }
+
+      if (!idToUse) {
+        toast('No ID detected — keep the number inside the band or switch to Manual.', false);
+        glow('fail');
+        return;
+      }
+
+      fd.append('detected_id', idToUse);
 
       const resp = await fetch('/guard/scan', { method: 'POST', body: fd });
       const json = await resp.json();
 
-      renderResult(json, lastSent);
+      renderResult(json, idToUse);
       glow(json.decision === 'allow' ? 'ok' : 'clear');
       toast(json.decision === 'allow' ? 'ACCESS ALLOWED' : 'ACCESS DENIED', json.decision === 'allow');
     } catch (e) {
       console.error(e);
       toast('Network error', false);
     } finally {
-      sending = false; submitBtn.disabled = false;
+      submitBtn.disabled = false;
     }
   }
 
@@ -302,7 +339,7 @@
         </div>
         <div class="p-4 space-y-3">
           <p class="text-sm text-slate-700">
-            ${noId ? 'No ID number detected. Please type the ID or rescan.' : (json.message || 'No active booking found.')}
+            ${noId ? 'No ID detected. Type it (Manual mode) or press Check Access again in Scan mode.' : (json.message || 'No active booking found.')}
           </p>
           ${json.debug?.extracted_national_id ? `<p class="mt-2 text-xs text-slate-500">Detected: ${json.debug.extracted_national_id || '—'}</p>` : ''}
         </div>
@@ -310,13 +347,18 @@
     `;
   }
 
-  // loop
-  setInterval(() => autoScan().catch(()=>{}), 800);
-
-  // submit (prefer manual if present)
+  // Submit
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await sendOnce({ detectedId: hiddenDet.value, attachSnapshot: !manualId.value.trim() });
+    await sendOnce();
+  });
+
+  // Enter key on manual field
+  manualId?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      form.requestSubmit();
+    }
   });
 })();
 </script>

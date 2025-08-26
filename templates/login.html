@@ -16,5 +16,11 @@
     </form>
     <p class="text-xs text-slate-500 mt-4">Admin: admin@example.com / admin123 · Guard: guard@example.com / guard123</p>
   </div>
+  <!-- e.g., in login.html -->
+<p class="text-sm text-slate-600 mt-3">
+  First time? <a href="{{ url_for('auth.register_admin_page') }}" class="underline">Create the first Admin</a>
+  · <a href="{{ url_for('auth.register_host_page') }}" class="underline">Register as Host</a>
+</p>
+
 </div>
 {% endblock %}

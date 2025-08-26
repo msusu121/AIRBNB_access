@@ -9,8 +9,23 @@
 
   <form method="post" enctype="multipart/form-data" class="space-y-4">
     <div>
-      <label class="text-sm">Booking</label>
-      <select name="booking_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+      <label class="text-sm block mb-1">Owner</label>
+      <div class="flex items-center gap-4">
+        <label class="inline-flex items-center gap-2">
+          <input type="radio" name="owner_type" value="guest" checked>
+          <span class="text-sm">Guest (attached to a booking)</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <input type="radio" name="owner_type" value="host">
+          <span class="text-sm">Host (me)</span>
+        </label>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">Choose Guest if this is a guest’s item (requires booking). Choose Host for your own item.</p>
+    </div>
+
+    <div id="bookingRow">
+      <label class="text-sm">Booking (for Guest-owned)</label>
+      <select name="booking_id" class="w-full rounded-xl border border-slate-300 px-3 py-2">
         <option value="">Select booking…</option>
         {% for b, room, guest, prop in bookings %}
           <option value="{{ b.id }}">
@@ -47,4 +62,17 @@
     </div>
   </form>
 </div>
+
+<script>
+  // hide booking select when Host is chosen
+  const radioGuest = document.querySelector('input[name="owner_type"][value="guest"]');
+  const radioHost  = document.querySelector('input[name="owner_type"][value="host"]');
+  const bookingRow = document.getElementById('bookingRow');
+
+  function refreshOwner() {
+    bookingRow.style.display = radioGuest.checked ? '' : 'none';
+  }
+  [radioGuest, radioHost].forEach(el => el.addEventListener('change', refreshOwner));
+  refreshOwner();
+</script>
 {% endblock %}

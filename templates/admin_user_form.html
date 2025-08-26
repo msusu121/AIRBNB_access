@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New User' if mode == 'create' else 'Edit User' }}{% endblock %}
+{% block content %}
+<div class="max-w-lg bg-white rounded-2xl shadow-sm p-6">
+  <h1 class="text-xl font-semibold mb-4">{{ 'New User' if mode == 'create' else 'Edit User' }}</h1>
+
+  <form method="post" action="{{ url_for('admin.users_create') if mode=='create' else url_for('admin.users_update', user_id=user.id) }}" class="space-y-3">
+    <div>
+      <label class="text-sm">Full name</label>
+      <input name="name" value="{{ user.name if user else '' }}" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+    </div>
+    <div>
+      <label class="text-sm">Email</label>
+      <input type="email" name="email" value="{{ user.email if user else '' }}" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
+    </div>
+    <div>
+      <label class="text-sm">Role</label>
+      <select name="role" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+        {% for val,label in roles %}
+          <option value="{{ val }}" {% if user and user.role==val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="text-sm">{{ 'Password' if mode=='create' else 'New password (optional)' }}</label>
+      <input type="password" name="password" class="w-full rounded-xl border border-slate-300 px-3 py-2" {% if mode=='create' %}required{% endif %}>
+    </div>
+
+    <div class="flex gap-2">
+      <button class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">Save</button>
+      <a href="{{ url_for('admin.users_index') }}" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-800 text-sm">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

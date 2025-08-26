@@ -1,0 +1,45 @@
+RAW:
+JAMHURI YA KENYA » REPUBLIC OF KEN
+SERIAL NUMBER 25496 /156 ; A en 37074687
+- FULL NAMES
+a TAN DUNCAN
+08,.06, 1999
+| Y/ MALE
+| DISTRICT OF
+- rs KINANGOP
+o \ yes PLAGE OF ISSUE
+ae ONGATA RONGAI
+- P DATE OF ISSUE ,
+‘ HOLDER'S SIGN Mh a we". ip
+a e 8 pai 5
+3 . ‘ A 4
+oa iis 4 5 Bs t ‘
+Fs) 1 2 3
+pg dn
+end + enter
+Z 0 delete
+insert
+
+NORM:
+JAMHUR1 YA KENYA » REPU8L1C 0F KEN
+5ER1AL NUM8ER 25496 /156 ; A en 37074687
+- FULL NAME5
+a TAN 0UNCAN
+08,.06, 1999
+1 Y/ MALE
+1 015TR1CT 0F
+- r5 K1NANG0P
+0 \ ye5 PLAGE 0F 155UE
+ae 0NGATA R0NGA1
+- P 0ATE 0F 155UE ,
+‘ H0L0ER'5 51GN Mh a we". ip
+a e 8 pai 5
+3 . ‘ A 4
+0a ii5 4 5 85 t ‘
+F5) 1 2 3
+p9 dn
+end + enter
+2 0 de1ete
+in5ert
+
+FOUND:37074687

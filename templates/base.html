@@ -21,7 +21,7 @@
       <div class="flex items-center gap-4">
         {% if current_user.is_authenticated %}
 
-          {# Manage: Admin & Host (read/list pages only) #}
+          {# Manage: Admin & Host (list pages) #}
           {% if current_user.role in ['admin', 'host'] %}
           <div class="relative group">
             <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">Manage</button>
@@ -31,6 +31,7 @@
               <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
               <a href="{{ url_for('bookings.index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Bookings</a>
               <a href="{{ url_for('luggage.list_') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage</a>
+              <a href="{{ url_for('admin.users_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Users</a>
             </div>
           </div>
           {% endif %}
@@ -49,9 +50,10 @@
           </div>
           {% endif %}
 
-          {# Guard: scanners only #}
+          {# Guard Tools: scanners #}
           {% if current_user.role == 'guard' %}
-          <a href="{{ url_for('guard.scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Guest Scanner</a>
+          
+          <a href="{{ url_for('guard.booking_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Booking QR Scanner</a>
           <a href="{{ url_for('luggage.guard_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Luggage Scanner</a>
           {% endif %}
 
@@ -64,7 +66,7 @@
           <span class="text-sm text-slate-600">{{ current_user.name }} ({{ current_user.role }})</span>
           <a href="{{ url_for('auth.logout') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Logout</a>
         {% else %}
-          <a href="{{ url_for('auth.login') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
+          <a href="{{ url_for('auth.login_page') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
         {% endif %}
       </div>
     </div>
@@ -91,7 +93,7 @@
   </main>
 
   <footer class="py-8 text-center text-sm text-slate-500">
-    Built with Flask + Tailwind · OCR powered by Tesseract
+    
   </footer>
   <script src="/static/htmx-json-render.js"></script>
 </body>

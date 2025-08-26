@@ -1,0 +1,57 @@
+RAW:
+ieee figs aoe y.
+‘itt i wee} ib
+(’extracted_national_id
+ce # No active booking f
+a ! return jsonify({
+wae . decision”. “deny”,
+4 )
+E. ‘reason’ “no active
+~
+% "message": "No actin
+7 —n ‘debug”: ("extracted
+o JAMHURI YA KENYA gaia REPUBLIC OF KENYA
+SERIAL NUMBER 254967156 CET (0 NUMBER 37074687
+FULL NAMES a
+TAN DUNCAN
+DATE-OF BIRTH
+08.06, 1999
+a SEX
+gor MALE 4
+& DISTRICT OF BJRTH
+rece. KINANGOP
+f ay ver / PLACE OF ISSUE
+wa ONGATA RONGAI
+' : DATE OF ISSUE suis Way:
+ri HOLDER'S SIGN. Ws <5 a im
+ye & Gay, fo i—
+
+NORM:
+ieee fi95 a0e y.
+‘itt i wee} ib
+(’extracted_nati0na1_id
+ce # N0 active b00kin9 f
+a 1 return j50nify({
+wae . deci5i0n”. “deny”,
+4 )
+E. ‘rea50n’ “n0 active
+~
+% "me55a9e": "N0 actin
+7 —n ‘debu9”: ("extracted
+0 JAMHUR1 YA KENYA 9aia REPU8L1C 0F KENYA
+5ER1AL NUM8ER 254967156 CET (0 NUM8ER 37074687
+FULL NAME5 a
+TAN 0UNCAN
+0ATE-0F 81RTH
+08.06, 1999
+a 5EX
+90r MALE 4
+& 015TR1CT 0F 8JRTH
+rece. K1NANG0P
+f ay ver / PLACE 0F 155UE
+wa 0NGATA R0NGA1
+' : 0ATE 0F 155UE 5ui5 Way:
+ri H0L0ER'5 51GN. W5 <5 a im
+ye & Gay, f0 i—
+
+FOUND:37074687

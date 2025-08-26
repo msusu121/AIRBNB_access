@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import asc
-from models import db, User, Property, Room, Checkpoint, ROLE_ADMIN, ROLE_HOST
+from models import db, User, Property, Room, Checkpoint, ROLE_ADMIN, ROLE_HOST, ROLE_GUARD
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -16,6 +16,8 @@ def _host_only():
     # Only Host can create/edit/delete
     return current_user.is_authenticated and current_user.role == ROLE_HOST
 
+def _admin_only():
+    return current_user.is_authenticated and current_user.role == ROLE_ADMIN
 
 # ---------- Properties ----------
 @bp.get("/properties")
@@ -276,3 +278,90 @@ def checkpoints_delete(cp_id):
     db.session.commit()
     flash("Checkpoint deleted.", "success")
     return redirect(url_for("admin.checkpoints_index"))
+
+
+@bp.get("/users")
+@login_required
+def users_index():
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    users = User.query.order_by(User.role.asc(), User.name.asc()).all()
+    return render_template("admin_users_list.html", users=users)
+
+@bp.get("/users/new")
+@login_required
+def users_new():
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    roles = [(ROLE_HOST, "Host"), (ROLE_GUARD, "Guard"), (ROLE_ADMIN, "Admin")]
+    return render_template("admin_user_form.html", user=None, roles=roles, mode="create")
+
+@bp.post("/users/new")
+@login_required
+def users_create():
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    name = (request.form.get("name") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
+    role = (request.form.get("role") or ROLE_GUARD).strip()
+    password = request.form.get("password") or ""
+
+    if not name or not email or not password:
+        flash("Name, email, password required.", "error")
+        return redirect(url_for("admin.users_new"))
+
+    if role not in (ROLE_ADMIN, ROLE_HOST, ROLE_GUARD):
+        flash("Invalid role.", "error")
+        return redirect(url_for("admin.users_new"))
+
+    if User.query.filter_by(email=email).first():
+        flash("Email already exists.", "error")
+        return redirect(url_for("admin.users_new"))
+
+    u = User(name=name, email=email, role=role)
+    u.set_password(password)
+    db.session.add(u); db.session.commit()
+    flash("User created.", "success")
+    return redirect(url_for("admin.users_index"))
+
+@bp.get("/users/<int:user_id>/edit")
+@login_required
+def users_edit(user_id):
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    u = User.query.get_or_404(user_id)
+    roles = [(ROLE_HOST, "Host"), (ROLE_GUARD, "Guard"), (ROLE_ADMIN, "Admin")]
+    return render_template("admin_user_form.html", user=u, roles=roles, mode="edit")
+
+@bp.post("/users/<int:user_id>/edit")
+@login_required
+def users_update(user_id):
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    u = User.query.get_or_404(user_id)
+    u.name = (request.form.get("name") or "").strip()
+    u.email = (request.form.get("email") or "").strip().lower()
+    role = (request.form.get("role") or u.role).strip()
+    if role not in (ROLE_ADMIN, ROLE_HOST, ROLE_GUARD):
+        flash("Invalid role.", "error")
+        return redirect(url_for("admin.users_edit", user_id=u.id))
+    u.role = role
+    new_password = request.form.get("password") or ""
+    if new_password:
+        u.set_password(new_password)
+    db.session.commit()
+    flash("User updated.", "success")
+    return redirect(url_for("admin.users_index"))
+
+@bp.post("/users/<int:user_id>/delete")
+@login_required
+def users_delete(user_id):
+    if not _admin_only():
+        flash("Unauthorized", "error"); return redirect(url_for("home"))
+    u = User.query.get_or_404(user_id)
+    if u.id == current_user.id:
+        flash("You cannot delete yourself.", "error")
+        return redirect(url_for("admin.users_index"))
+    db.session.delete(u); db.session.commit()
+    flash("User deleted.", "success")
+    return redirect(url_for("admin.users_index"))    

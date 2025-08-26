@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">Users</h1>
+    <a href="{{ url_for('admin.users_new') }}" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New User</a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500">
+          <th class="py-2">Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        <tr class="border-t">
+          <td class="py-2">{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            <span class="px-2 py-1 rounded-lg bg-slate-100">{{ u.role }}</span>
+          </td>
+          <td>{{ u.created_at }}</td>
+          <td class="text-right">
+            <a href="{{ url_for('admin.users_edit', user_id=u.id) }}" class="text-slate-700 hover:underline">Edit</a>
+            {% if u.id != current_user.id %}
+              <form class="inline" method="post" action="{{ url_for('admin.users_delete', user_id=u.id) }}" onsubmit="return confirm('Delete this user?')">
+                <button class="ml-3 text-rose-600 hover:underline">Delete</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="py-4 text-slate-500">No users yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

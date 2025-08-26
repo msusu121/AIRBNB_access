@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 
 from models import (
     db, ROLE_ADMIN, ROLE_HOST, ROLE_GUARD,
-    Booking, Luggage, LuggageScanLog, Checkpoint, Room, Guest, Property
+    Booking, Luggage, LuggageScanLog, Checkpoint, Room, Guest, Property, User
 )
 
 # Optional QR lib (PNG generation)
@@ -52,11 +52,12 @@ def list_():
         return redirect(url_for("home"))
 
     items = (
-        db.session.query(Luggage, Booking, Room, Guest, Property)
-        .join(Booking, Luggage.booking_id == Booking.id)
-        .join(Room, Booking.room_id == Room.id)
-        .join(Guest, Booking.guest_id == Guest.id)
-        .join(Property, Room.property_id == Property.id)
+        db.session.query(Luggage, Booking, Room, Guest, Property, User)
+        .outerjoin(Booking, Luggage.booking_id == Booking.id)
+        .outerjoin(Room, Booking.room_id == Room.id)
+        .outerjoin(Guest, Booking.guest_id == Guest.id)
+        .outerjoin(Property, Room.property_id == Property.id)
+        .outerjoin(User, Luggage.host_id == User.id)
         .order_by(Luggage.created_at.desc())
         .limit(200)
         .all()
@@ -73,11 +74,12 @@ def detail(lug_id: int):
         return redirect(url_for("home"))
 
     data = (
-        db.session.query(Luggage, Booking, Room, Guest, Property)
-        .join(Booking, Luggage.booking_id == Booking.id)
-        .join(Room, Booking.room_id == Room.id)
-        .join(Guest, Booking.guest_id == Guest.id)
-        .join(Property, Room.property_id == Property.id)
+        db.session.query(Luggage, Booking, Room, Guest, Property, User)
+        .outerjoin(Booking, Luggage.booking_id == Booking.id)
+        .outerjoin(Room, Booking.room_id == Room.id)
+        .outerjoin(Guest, Booking.guest_id == Guest.id)
+        .outerjoin(Property, Room.property_id == Property.id)
+        .outerjoin(User, Luggage.host_id == User.id)
         .filter(Luggage.id == lug_id)
         .first_or_404()
     )
@@ -90,10 +92,12 @@ def detail(lug_id: int):
         .all()
     )
 
-    luggage, booking, room, guest, prop = data
+    luggage, booking, room, guest, prop, host_user = data
+
     return render_template(
         "admin_luggage_detail.html",
-        luggage=luggage, booking=booking, room=room, guest=guest, prop=prop, scans=scans
+        luggage=luggage, booking=booking, room=room, guest=guest, prop=prop,
+        host_user=host_user, scans=scans
     )
 
 

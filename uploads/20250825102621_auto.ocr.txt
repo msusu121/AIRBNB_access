@@ -1,0 +1,13 @@
+RAW:
+gs
+Peat =
+a WAIGIF
++
+
+NORM:
+95
+Peat =
+a WA1G1F
++
+
+FOUND:None
