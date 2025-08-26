@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Billing & Pricing{% endblock %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6 space-y-6 max-w-3xl mx-auto">
+  <h1 class="text-2xl font-semibold">Choose Your Plan</h1>
+  <p class="text-sm text-slate-600">Select the package that fits your needs. All payments are handled via M-Pesa STK Push.</p>
+
+  <div class="grid sm:grid-cols-2 gap-6">
+    <!-- Basic -->
+    <div class="rounded-xl border p-5 flex flex-col justify-between">
+      <div>
+        <div class="font-semibold text-lg">Basic</div>
+        <ul class="text-sm mt-3 list-disc ml-5 space-y-1">
+          <li>Bookings Management</li>
+          <li>Booking QR Scanner</li>
+        </ul>
+        <div class="mt-4 font-bold text-xl">KES {{ basic_price }} / month</div>
+      </div>
+      <div class="mt-4">
+        {% if current_plan != 'basic' %}
+        <form method="post" action="{{ url_for('billing.checkout') }}" class="space-y-2">
+          <input type="hidden" name="plan" value="basic">
+          <label class="text-sm">Phone (2547XXXXXXXX)</label>
+          <input name="phone" required class="w-full rounded-xl border px-3 py-2 text-sm" placeholder="2547XXXXXXXX">
+          <button class="w-full rounded-xl bg-slate-900 text-white py-2 text-sm">Subscribe Basic</button>
+        </form>
+        {% else %}
+        <div class="mt-2 text-emerald-600 text-sm">You’re on Basic ✅</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Premium -->
+    <div class="rounded-xl border p-5 flex flex-col justify-between">
+      <div>
+        <div class="font-semibold text-lg">Premium</div>
+        <ul class="text-sm mt-3 list-disc ml-5 space-y-1">
+          <li>Luggage QR Scanner</li>
+          <li>Everything in Basic</li>
+        </ul>
+        <div class="mt-4 font-bold text-xl">KES {{ premium_price }} / month</div>
+      </div>
+      <div class="mt-4">
+        {% if current_plan != 'premium' %}
+        <form method="post" action="{{ url_for('billing.checkout') }}" class="space-y-2">
+          <input type="hidden" name="plan" value="premium">
+          <label class="text-sm">Phone (2547XXXXXXXX)</label>
+          <input name="phone" required class="w-full rounded-xl border px-3 py-2 text-sm" placeholder="2547XXXXXXXX">
+          <button class="w-full rounded-xl bg-slate-900 text-white py-2 text-sm">Upgrade to Premium</button>
+        </form>
+        {% else %}
+        <div class="mt-2 text-emerald-600 text-sm">You’re on Premium 🎉</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

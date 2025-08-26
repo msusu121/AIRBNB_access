@@ -19,6 +19,9 @@
 
       <!-- Middle: Menus -->
       <div class="flex items-center gap-4">
+        <!-- Public: Pricing -->
+        <a href="{{ url_for('billing.pricing') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Pricing</a>
+
         {% if current_user.is_authenticated %}
 
           {# Manage: Admin & Host (list pages) #}
@@ -52,7 +55,6 @@
 
           {# Guard Tools: scanners #}
           {% if current_user.role == 'guard' %}
-          
           <a href="{{ url_for('guard.booking_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Booking QR Scanner</a>
           <a href="{{ url_for('luggage.guard_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Luggage Scanner</a>
           {% endif %}
@@ -63,6 +65,17 @@
       <!-- Right: User & Auth -->
       <div class="flex items-center gap-3">
         {% if current_user.is_authenticated %}
+          <!-- Plan badge (if you added User.plan) -->
+          {% if current_user.plan %}
+            <span class="text-[11px] rounded-full border px-2 py-0.5
+              {% if current_user.plan|upper == 'PREMIUM' %} border-amber-300 text-amber-700 bg-amber-50
+              {% else %} border-slate-300 text-slate-700 bg-white {% endif %}">
+              {{ current_user.plan|upper }}
+            </span>
+          {% endif %}
+
+         
+
           <span class="text-sm text-slate-600">{{ current_user.name }} ({{ current_user.role }})</span>
           <a href="{{ url_for('auth.logout') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Logout</a>
         {% else %}
@@ -93,7 +106,7 @@
   </main>
 
   <footer class="py-8 text-center text-sm text-slate-500">
-    
+    AirbnB Gate Access · M-Pesa ready · {{ current_year or "" }}
   </footer>
   <script src="/static/htmx-json-render.js"></script>
 </body>

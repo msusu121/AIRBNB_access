@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Payment Successful{% endblock %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-sm p-6 max-w-lg mx-auto text-center">
+  <h1 class="text-2xl font-semibold text-emerald-600">STK initiation Successful 🎉</h1>
+  <p class="mt-2 text-slate-600">Enter Mpesa PIN after paying go to Dashboard.</p>
+  <div class="mt-6">
+    <a href="{{ url_for('home') }}" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm">Go to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

@@ -2,12 +2,18 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from enum import Enum
+from sqlalchemy import text
+
 
 db = SQLAlchemy()
 
 ROLE_ADMIN = "admin"
 ROLE_HOST = "host"
 ROLE_GUARD = "guard"
+class Plan(str, Enum):
+    BASIC = "basic"
+    PREMIUM = "premium"
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,10 +21,35 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default=ROLE_HOST)
     password_hash = db.Column(db.String(255), nullable=False)
+    plan = db.Column(
+    db.String(20),
+    nullable=False,
+    server_default=text("'FREE'")  # tells SQL to use 'FREE' if not provided
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, raw): self.password_hash = generate_password_hash(raw)
     def check_password(self, raw): return check_password_hash(self.password_hash, raw)
+
+class Subscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), index=True, nullable=False)
+    plan = db.Column(db.String(20), nullable=False)  # 'basic' or 'premium'
+    status = db.Column(db.String(20), nullable=False, default="pending")  # pending|active|expired|canceled
+    started_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)  # for monthly plans
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), index=True, nullable=False)
+    amount = db.Column(db.Integer, nullable=False)       # KES in cents or integer shillings
+    currency = db.Column(db.String(5), nullable=False, default="KES")
+    provider = db.Column(db.String(20), nullable=False, default="mpesa")
+    reference = db.Column(db.String(64), nullable=True)  # CheckoutRequestID
+    status = db.Column(db.String(20), nullable=False, default="initiated")  # initiated|success|failed
+    raw_callback = db.Column(db.Text, nullable=True)      # store full JSON
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)    
 
 class Property(db.Model):
     id = db.Column(db.Integer, primary_key=True)

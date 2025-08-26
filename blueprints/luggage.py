@@ -15,6 +15,7 @@ from models import (
     db, ROLE_ADMIN, ROLE_HOST, ROLE_GUARD,
     Booking, Luggage, LuggageScanLog, Checkpoint, Room, Guest, Property, User
 )
+from utils.plan_gate import require_plan, require_paid
 
 # Optional QR lib (PNG generation)
 try:
@@ -45,6 +46,7 @@ def _guard_only():
 
 @bp.get("/")
 @login_required
+@require_plan("premium")
 def list_():
     """List recent luggage (Admin = read-only, Host = manages)."""
     if not _can_view():
@@ -104,6 +106,7 @@ def detail(lug_id: int):
 # ---------------- Host: create / update / delete ----------------
 
 @bp.get("/new")
+@require_plan("premium")
 @login_required
 def new():
     if not _host_only():
@@ -124,6 +127,7 @@ def new():
 
 
 @bp.post("/new")
+@require_plan("premium")
 @login_required
 def create():
     if not _host_only():
@@ -175,6 +179,7 @@ def create():
 
 @bp.post("/<int:lug_id>/block")
 @login_required
+@require_plan("premium")
 def block(lug_id: int):
     if not _host_only():
         flash("Only hosts can manage luggage status.", "error")
@@ -265,6 +270,7 @@ def luggage_uploads(fname: str):
 
 @bp.get("/scan")
 @login_required
+@require_plan("premium")
 def guard_scan_page():
     if not _guard_only():
         flash("Unauthorized", "error")

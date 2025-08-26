@@ -7,6 +7,8 @@ from blueprints.bookings import bp as bookings_bp
 from blueprints.guard import bp as guard_bp
 from blueprints.admin import bp as admin_bp
 from blueprints.luggage import bp as luggage_bp
+from blueprints.mpesa import bp as mpesa_bp
+from blueprints.billing import bp as billing_bp
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -28,6 +30,8 @@ def create_app():
     app.register_blueprint(guard_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(luggage_bp)
+    app.register_blueprint(mpesa_bp)
+    app.register_blueprint(billing_bp)
 
     @app.get("/")
     def home():
