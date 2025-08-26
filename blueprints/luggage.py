@@ -15,7 +15,7 @@ from models import (
     db, ROLE_ADMIN, ROLE_HOST, ROLE_GUARD,
     Booking, Luggage, LuggageScanLog, Checkpoint, Room, Guest, Property, User
 )
-from utils.plan_gate import require_plan, require_paid
+from utils.plan_gate import require_plan
 
 # Optional QR lib (PNG generation)
 try:
@@ -27,55 +27,63 @@ except Exception:
 bp = Blueprint("luggage", __name__, url_prefix="/luggage")
 
 
-# ---------------- Permissions ----------------
+# ---------------- Role helpers ----------------
+def _is_admin():
+    return current_user.is_authenticated and current_user.role == ROLE_ADMIN
 
-def _can_view():
-    """Admin or Host can view lists/details (Admin read-only; Host manages)."""
-    return current_user.is_authenticated and current_user.role in (ROLE_ADMIN, ROLE_HOST)
-
-def _host_only():
-    """Only Host can create/edit/delete luggage."""
+def _is_host():
     return current_user.is_authenticated and current_user.role == ROLE_HOST
 
-def _guard_only():
-    """Only Guard can use the guard scan UI/API."""
+def _is_guard():
     return current_user.is_authenticated and current_user.role == ROLE_GUARD
 
+def _can_view():
+    # Admin or Host can view lists/details
+    return current_user.is_authenticated and current_user.role in (ROLE_ADMIN, ROLE_HOST)
 
-# ---------------- Admin/Host: list & detail ----------------
+
+# ================== Admin/Host: list & detail ==================
 
 @bp.get("/")
 @login_required
 @require_plan("premium")
 def list_():
-    """List recent luggage (Admin = read-only, Host = manages)."""
+    """List recent luggage (Admin = all, Host = only theirs)."""
     if not _can_view():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
 
-    items = (
+    base = (
         db.session.query(Luggage, Booking, Room, Guest, Property, User)
         .outerjoin(Booking, Luggage.booking_id == Booking.id)
         .outerjoin(Room, Booking.room_id == Room.id)
         .outerjoin(Guest, Booking.guest_id == Guest.id)
         .outerjoin(Property, Room.property_id == Property.id)
         .outerjoin(User, Luggage.host_id == User.id)
-        .order_by(Luggage.created_at.desc())
-        .limit(200)
-        .all()
     )
+
+    if _is_admin():
+        items = base.order_by(Luggage.created_at.desc()).limit(200).all()
+    else:
+        items = (
+            base.filter(Property.owner_id == current_user.id)
+                .order_by(Luggage.created_at.desc())
+                .limit(200)
+                .all()
+        )
+
     return render_template("admin_luggage_list.html", items=items)
 
 
 @bp.get("/<int:lug_id>")
 @login_required
 def detail(lug_id: int):
-    """View a luggage item (Admin read-only, Host can act)."""
+    """View a luggage item (Admin read-only, Host only if owns)."""
     if not _can_view():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
 
-    data = (
+    q = (
         db.session.query(Luggage, Booking, Room, Guest, Property, User)
         .outerjoin(Booking, Luggage.booking_id == Booking.id)
         .outerjoin(Room, Booking.room_id == Room.id)
@@ -83,8 +91,14 @@ def detail(lug_id: int):
         .outerjoin(Property, Room.property_id == Property.id)
         .outerjoin(User, Luggage.host_id == User.id)
         .filter(Luggage.id == lug_id)
-        .first_or_404()
     )
+    if _is_host():
+        q = q.filter(Property.owner_id == current_user.id)
+
+    data = q.first()
+    if not data:
+        flash("Unauthorized or not found.", "error")
+        return redirect(url_for("luggage.list_"))
 
     scans = (
         LuggageScanLog.query
@@ -103,34 +117,39 @@ def detail(lug_id: int):
     )
 
 
-# ---------------- Host: create / update / delete ----------------
+# ================== Host: create / update / delete ==================
 
 @bp.get("/new")
-@require_plan("premium")
 @login_required
+@require_plan("premium")
 def new():
-    if not _host_only():
+    if not _is_host():
         flash("Only hosts can register luggage.", "error")
         return redirect(url_for("luggage.list_"))
 
-    # Recent/upcoming bookings to attach luggage to
+    # Show only THIS host's recent/upcoming bookings
     bookings = (
         db.session.query(Booking, Room, Guest, Property)
         .join(Room, Booking.room_id == Room.id)
         .join(Guest, Booking.guest_id == Guest.id)
         .join(Property, Room.property_id == Property.id)
+        .filter(Property.owner_id == current_user.id)
         .order_by(Booking.check_in.desc())
         .limit(300)
         .all()
     )
+    if not bookings:
+        flash("You have no bookings yet. Create a booking first.", "error")
+        return redirect(url_for("bookings.new_booking"))
+
     return render_template("admin_luggage_new.html", bookings=bookings)
 
 
 @bp.post("/new")
-@require_plan("premium")
 @login_required
+@require_plan("premium")
 def create():
-    if not _host_only():
+    if not _is_host():
         flash("Only hosts can register luggage.", "error")
         return redirect(url_for("luggage.list_"))
 
@@ -146,8 +165,20 @@ def create():
         flash("Label is required.", "error")
         return redirect(url_for("luggage.new"))
 
-    # ensure booking exists
-    booking = Booking.query.get_or_404(booking_id)
+    # ensure booking exists & belongs to this host
+    b = (
+        db.session.query(Booking)
+        .join(Room, Booking.room_id == Room.id)
+        .join(Property, Room.property_id == Property.id)
+        .filter(Booking.id == booking_id)
+    )
+    if _is_host():
+        b = b.filter(Property.owner_id == current_user.id)
+
+    booking = b.first()
+    if not booking:
+        flash("Invalid booking selection.", "error")
+        return redirect(url_for("luggage.new"))
 
     # generate QR token
     qr_token = secrets.token_urlsafe(16)
@@ -164,6 +195,7 @@ def create():
 
     lug = Luggage(
         booking_id=booking.id,
+        host_id=current_user.id,     # store who registered it (if your model has host_id)
         label=label,
         size=size,
         photo_path=photo_path,
@@ -177,15 +209,32 @@ def create():
     return redirect(url_for("luggage.detail", lug_id=lug.id))
 
 
+def _host_owns_luggage(lug: Luggage) -> bool:
+    """Check if current host owns the luggage via booking -> room -> property."""
+    if not lug:
+        return False
+    if _is_admin():
+        return True
+    # join chain to verify ownership
+    owner_id = (
+        db.session.query(Property.owner_id)
+        .join(Room, Room.property_id == Property.id)
+        .join(Booking, Booking.room_id == Room.id)
+        .filter(Booking.id == lug.booking_id)
+        .scalar()
+    )
+    return owner_id == current_user.id
+
+
 @bp.post("/<int:lug_id>/block")
 @login_required
 @require_plan("premium")
 def block(lug_id: int):
-    if not _host_only():
-        flash("Only hosts can manage luggage status.", "error")
+    lug = Luggage.query.get_or_404(lug_id)
+    if not _host_owns_luggage(lug):
+        flash("Unauthorized", "error")
         return redirect(url_for("luggage.list_"))
 
-    lug = Luggage.query.get_or_404(lug_id)
     lug.status = "blocked"
     db.session.commit()
     flash("Luggage blocked.", "success")
@@ -194,42 +243,50 @@ def block(lug_id: int):
 
 @bp.post("/<int:lug_id>/unblock")
 @login_required
+@require_plan("premium")
 def unblock(lug_id: int):
-    if not _host_only():
-        flash("Only hosts can manage luggage status.", "error")
+    lug = Luggage.query.get_or_404(lug_id)
+    if not _host_owns_luggage(lug):
+        flash("Unauthorized", "error")
         return redirect(url_for("luggage.list_"))
 
-    lug = Luggage.query.get_or_404(lug_id)
     lug.status = "pending" if lug.status != "exited" else "exited"
     db.session.commit()
-    flash("Luggage unblocked.", "success")
+    flash("Luggage status updated.", "success")
     return redirect(url_for("luggage.detail", lug_id=lug.id))
 
 
 @bp.post("/<int:lug_id>/delete")
 @login_required
+@require_plan("premium")
 def delete(lug_id: int):
-    if not _host_only():
-        flash("Only hosts can delete luggage.", "error")
+    lug = Luggage.query.get_or_404(lug_id)
+    if not _host_owns_luggage(lug):
+        flash("Unauthorized", "error")
         return redirect(url_for("luggage.list_"))
 
-    lug = Luggage.query.get_or_404(lug_id)
     db.session.delete(lug)
     db.session.commit()
     flash("Luggage deleted.", "success")
     return redirect(url_for("luggage.list_"))
 
 
-# ---------------- QR image (PNG) & Download ----------------
+# ================== QR image (PNG) & Download ==================
 
 @bp.get("/qr/<token>.png")
 @login_required
 def qr_png(token: str):
-    """Serve a QR image for a luggage token (Hosts/Admins can print)."""
+    """Serve a QR image for a luggage token (Host only if owns; Admin any)."""
     if qrcode is None:
         return "qrcode library not installed. pip install qrcode[pil]", 500
 
     lug = Luggage.query.filter_by(qr_token=token).first_or_404()
+
+    # host guard: ensure this luggage belongs to the host
+    if _is_host() and not _host_owns_luggage(lug):
+        flash("Unauthorized", "error")
+        return redirect(url_for("luggage.list_"))
+
     img = qrcode.make(token, image_factory=PilImage, box_size=6, border=2)
     bio = io.BytesIO()
     img.save(bio, format="PNG")
@@ -243,7 +300,13 @@ def qr_download(token: str):
     """Force download of the QR PNG."""
     if qrcode is None:
         return "qrcode library not installed. pip install qrcode[pil]", 500
+
     lug = Luggage.query.filter_by(qr_token=token).first_or_404()
+
+    if _is_host() and not _host_owns_luggage(lug):
+        flash("Unauthorized", "error")
+        return redirect(url_for("luggage.list_"))
+
     img = qrcode.make(token, image_factory=PilImage, box_size=10, border=2)
     bio = io.BytesIO()
     img.save(bio, format="PNG")
@@ -256,23 +319,22 @@ def qr_download(token: str):
     )
 
 
-# ---------------- Serve uploaded luggage photos ----------------
+# ================== Serve uploaded luggage photos ==================
 
 @bp.get("/uploads/luggage/<path:fname>")
 @login_required
 def luggage_uploads(fname: str):
-    """Serve uploaded luggage photos saved under /uploads/luggage."""
     folder = os.path.join(current_app.root_path, "uploads", "luggage")
     return send_from_directory(folder, fname)
 
 
-# ---------------- Guard: scanner page & scan API ----------------
+# ================== Guard: scanner page & scan API ==================
 
 @bp.get("/scan")
 @login_required
 @require_plan("premium")
 def guard_scan_page():
-    if not _guard_only():
+    if not _is_guard():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
     checkpoints = Checkpoint.query.order_by(Checkpoint.name.asc()).all()
@@ -282,7 +344,7 @@ def guard_scan_page():
 @bp.post("/scan")
 @login_required
 def guard_scan_post():
-    if not _guard_only():
+    if not _is_guard():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
     checkpoint_id = int(request.form.get("checkpoint_id") or 0)
@@ -346,7 +408,7 @@ def guard_scan_post():
         "luggage_id": luggage.id,
         "label": luggage.label,
         "size": luggage.size,
-        "photo": luggage.photo_path,            # web path
+        "photo": luggage.photo_path,
         "status": luggage.status,
         "booking_id": booking.id,
         "guest_name": guest.full_name,

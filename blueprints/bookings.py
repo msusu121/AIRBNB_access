@@ -139,7 +139,7 @@ def data():
 
 @bp.get("/new")
 @login_required
-@require_paid()  
+#@require_paid()  
 def new_booking():
     if not _can_create():
         flash("Only hosts can add bookings", "error")
@@ -165,7 +165,7 @@ def new_booking():
 
 @bp.post("/new")
 @login_required
-@require_paid() 
+#@require_paid() 
 def create_booking():
     if not _can_create():
         flash("Only hosts can add bookings", "error")
@@ -259,7 +259,7 @@ def create_booking():
 
 @bp.get("/<int:booking_id>")
 @login_required
-@require_paid() 
+#@require_paid() 
 def detail(booking_id: int):
     if not _can_view():
         flash("Unauthorized", "error")
