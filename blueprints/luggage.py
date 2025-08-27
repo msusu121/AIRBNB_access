@@ -340,6 +340,15 @@ def guard_scan_page():
     checkpoints = Checkpoint.query.order_by(Checkpoint.name.asc()).all()
     return render_template("guard_luggage_scan.html", checkpoints=checkpoints)
 
+def _safe_checkpoint_id(raw):
+    """Return a valid checkpoint id or None."""
+    try:
+        cid = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if cid <= 0:
+        return None
+    return Checkpoint.query.get(cid).id if Checkpoint.query.get(cid) else None
 
 @bp.post("/scan")
 @login_required
@@ -347,7 +356,7 @@ def guard_scan_post():
     if not _is_guard():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
-    checkpoint_id = int(request.form.get("checkpoint_id") or 0)
+    checkpoint_id = _safe_checkpoint_id(request.form.get("checkpoint_id"))
     token = (request.form.get("qr_token") or "").strip()
 
     if not token:

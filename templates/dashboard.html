@@ -1,21 +1,108 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="grid md:grid-cols-3 gap-4">
-  <div class="bg-white rounded-2xl p-6 shadow-sm">
-    <h2 class="font-semibold">Quick Actions</h2>
-    <div class="mt-3 space-y-2">
-      <a href="/bookings/new" class="block px-4 py-2 bg-slate-900 text-white rounded-xl text-sm">Create Booking</a>
-      <a href="/bookings" class="block px-4 py-2 border rounded-xl text-sm">View Bookings</a>
-      {% if user.role == "guard" %}
-      <a href="/guard/scan" class="block px-4 py-2 border rounded-xl text-sm">Open Guard Scanner</a>
-      {% endif %}
+
+{% set role = current_user.role if current_user.is_authenticated else 'guest' %}
+
+<!-- Header -->
+<div class="mb-4">
+  <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
+  <p class="text-sm text-slate-600">Welcome{{ ', ' + current_user.name if current_user.is_authenticated else '' }}.</p>
+</div>
+
+{% if role == 'guard' %}
+  <!-- Guard-only: streamlined workspace -->
+  <div class="grid lg:grid-cols-3 gap-4">
+    <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm ring-1 ring-slate-200">
+      <h2 class="font-semibold">Your Tools</h2>
+      <div class="mt-4 grid sm:grid-cols-2 gap-3">
+        <a href="{{ url_for('guard.booking_scan_page') }}"
+           class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <div class="text-sm font-medium">Booking QR Scanner</div>
+            <div class="text-xs text-slate-500">Scan guest booking codes</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border">QR</span>
+        </a>
+        <a href="{{ url_for('luggage.guard_scan_page') }}"
+           class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <div class="text-sm font-medium">Luggage Scanner</div>
+            <div class="text-xs text-slate-500">Verify luggage exits</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border">QR</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 shadow-sm ring-1 ring-slate-200">
+      <h2 class="font-semibold">Notes</h2>
+      <ul class="mt-3 text-sm text-slate-600 space-y-2">
+        <li>• Keep the camera steady; align code within frame.</li>
+        <li>• If a code fails, try again in better light.</li>
+        <li>• Report suspicious items to the host immediately.</li>
+      </ul>
     </div>
   </div>
-  <div class="bg-white rounded-2xl p-6 shadow-sm md:col-span-2">
-    <h2 class="font-semibold">Welcome</h2>
-    <p class="text-sm text-slate-600 mt-2">
-      Manage bookings or scan guests at the gate. This scaffold is minimal and ready for extension.
-    </p>
+
+{% else %}
+  <!-- Host/Admin dashboard -->
+  <div class="grid lg:grid-cols-3 gap-4">
+    <!-- Stats (placeholder values unless you pass real counts) -->
+    <div class="grid sm:grid-cols-3 lg:grid-cols-1 gap-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Active Stays</div>
+        <div class="mt-2 text-2xl font-semibold">{{ active_stays or 0 }}</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Today’s Check-ins</div>
+        <div class="mt-2 text-2xl font-semibold">{{ todays_checkins or 0 }}</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Luggage Pending</div>
+        <div class="mt-2 text-2xl font-semibold">{{ luggage_pending or 0 }}</div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm ring-1 ring-slate-200">
+      <h2 class="font-semibold">Quick Actions</h2>
+      <div class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <a href="{{ url_for('bookings.new_booking') }}"
+           class="block rounded-xl bg-slate-900 text-white px-4 py-3 text-sm text-center hover:bg-slate-800">
+          Create Booking
+        </a>
+        <a href="{{ url_for('bookings.index') }}"
+           class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
+          View Bookings
+        </a>
+        <a href="{{ url_for('luggage.new') }}"
+           class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
+          New Luggage Pass
+        </a>
+        <a href="{{ url_for('luggage.list_') }}"
+           class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
+          View Luggage
+        </a>
+        <a href="{{ url_for('admin.properties_index') }}"
+           class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
+          Properties
+        </a>
+        <a href="{{ url_for('admin.rooms_index') }}"
+           class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
+          Rooms
+        </a>
+      </div>
+
+      <div class="mt-6 rounded-2xl border border-slate-200 p-4 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium">Need more power?</div>
+          <div class="text-xs text-slate-500">Upgrade to Premium for Luggage QR scanning and more.</div>
+        </div>
+        <a href="{{ url_for('billing.pricing') }}" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-sm">See Plans</a>
+      </div>
+    </div>
   </div>
-</div>
+{% endif %}
+
 {% endblock %}

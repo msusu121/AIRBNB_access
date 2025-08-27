@@ -6,95 +6,110 @@
   <title>{{ title or "Airbnb Gate Access" }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <meta name="color-scheme" content="light dark">
 </head>
 <body class="bg-slate-50 text-slate-900">
   <!-- Top Nav -->
-  <nav class="bg-white shadow-sm sticky top-0 z-40">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <!-- Brand -->
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-2xl bg-slate-900"></div>
-        <a href="{{ url_for('home') }}" class="font-semibold">Airbnb Gate Access</a>
-      </div>
+  <nav class="bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex items-center justify-between h-14">
+        <!-- Brand -->
+        <div class="flex items-center gap-3">
+          <a href="{{ url_for('home') }}" class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-2xl bg-slate-900"></div>
+            <span class="font-semibold">Airbnb Gate Access</span>
+          </a>
+        </div>
 
-      <!-- Middle: Menus -->
-      <div class="flex items-center gap-4">
-        <!-- Public: Pricing -->
-        <a href="{{ url_for('billing.pricing') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Pricing</a>
+        <!-- Middle: Menus (role-aware) -->
+        <div class="hidden md:flex items-center gap-2">
+          {% if not current_user.is_authenticated or current_user.role in ['admin','host'] %}
+            <!-- Pricing (hide for guards) -->
+            <a href="{{ url_for('billing.pricing') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Pricing</a>
+          {% endif %}
 
-        {% if current_user.is_authenticated %}
+          {% if current_user.is_authenticated %}
+            {% if current_user.role in ['admin'] %}
+              <div class="relative group">
+                <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">Manage</button>
+                <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-xl shadow-lg min-w-[220px] z-40">
+                  <a href="{{ url_for('admin.properties_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
+                  <a href="{{ url_for('admin.rooms_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
+                  <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
+                  <a href="{{ url_for('bookings.index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Bookings</a>
+                  <a href="{{ url_for('luggage.list_') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage</a>
+                  {% if current_user.role == 'admin' %}
+                  <a href="{{ url_for('admin.users_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Users</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
 
-          {# Manage: Admin & Host (list pages) #}
-          {% if current_user.role in ['admin', 'host'] %}
-          <div class="relative group">
-            <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">Manage</button>
-            <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[220px] z-40">
-              <a href="{{ url_for('admin.properties_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
-              <a href="{{ url_for('admin.rooms_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
-              <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
-              <a href="{{ url_for('bookings.index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Bookings</a>
-              <a href="{{ url_for('luggage.list_') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage</a>
-              <a href="{{ url_for('admin.users_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Users</a>
+            
+
+            {% if current_user.role == 'guard' %}
+          <!--  <a href="{{ url_for('guard.booking_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Booking QR Scanner</a>
+              <a href="{{ url_for('luggage.guard_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Luggage Scanner</a> -->
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <!-- Right: User & Auth -->
+        <div class="flex items-center gap-3">
+          {% if current_user.is_authenticated %}
+            <!-- Plan badge (hide for guards) -->
+            {% if current_user.role in ['host','admin'] and current_user.plan %}
+              <span class="text-[11px] rounded-full border px-2 py-0.5
+                {% if current_user.plan|upper == 'PREMIUM' %} border-amber-300 text-amber-700 bg-amber-50
+                {% else %} border-slate-300 text-slate-700 bg-white {% endif %}">
+                {{ current_user.plan|upper }}
+              </span>
+            {% endif %}
+
+            <!-- User dropdown -->
+            <div class="relative group">
+              <button class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100">
+                <div class="w-7 h-7 rounded-full bg-slate-200 ring-1 ring-slate-300"></div>
+                <div class="text-left">
+                  <div class="text-xs leading-none text-slate-500">{{ current_user.role|title }}</div>
+                  <div class="text-sm leading-tight font-medium">{{ current_user.name }}</div>
+                </div>
+              </button>
+              <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-xl shadow-lg min-w-[180px] z-40">
+                {% if current_user.role in ['host','admin'] %}
+                  <a href="{{ url_for('billing.pricing') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Billing & Plan</a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Logout</a>
+              </div>
             </div>
-          </div>
+          {% else %}
+            <a href="{{ url_for('auth.login_page') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
           {% endif %}
-
-          {# Host Tools: Host only (create pages) #}
-          {% if current_user.role == 'host' %}
-          <div class="relative group">
-            <button class="px-3 py-1.5 rounded-lg text-sm text-white bg-slate-900">Host Tools</button>
-            <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg min-w-[220px] z-40">
-              <a href="{{ url_for('admin.properties_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Property</a>
-              <a href="{{ url_for('admin.rooms_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Room</a>
-              <a href="{{ url_for('admin.checkpoints_new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Checkpoint</a>
-              <a href="{{ url_for('bookings.new_booking') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">New Booking</a>
-              <a href="{{ url_for('luggage.new') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage Pass</a>
-            </div>
-          </div>
-          {% endif %}
-
-          {# Guard Tools: scanners #}
-          {% if current_user.role == 'guard' %}
-          <a href="{{ url_for('guard.booking_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Booking QR Scanner</a>
-          <a href="{{ url_for('luggage.guard_scan_page') }}" class="text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100">Luggage Scanner</a>
-          {% endif %}
-
-        {% endif %}
-      </div>
-
-      <!-- Right: User & Auth -->
-      <div class="flex items-center gap-3">
-        {% if current_user.is_authenticated %}
-          <!-- Plan badge (if you added User.plan) -->
-          {% if current_user.plan %}
-            <span class="text-[11px] rounded-full border px-2 py-0.5
-              {% if current_user.plan|upper == 'PREMIUM' %} border-amber-300 text-amber-700 bg-amber-50
-              {% else %} border-slate-300 text-slate-700 bg-white {% endif %}">
-              {{ current_user.plan|upper }}
-            </span>
-          {% endif %}
-
-         
-
-          <span class="text-sm text-slate-600">{{ current_user.name }} ({{ current_user.role }})</span>
-          <a href="{{ url_for('auth.logout') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Logout</a>
-        {% else %}
-          <a href="{{ url_for('auth.login_page') }}" class="text-sm px-3 py-1 rounded-xl bg-slate-900 text-white">Login</a>
-        {% endif %}
+        </div>
       </div>
     </div>
   </nav>
+
+  <!-- Upsell banner (hosts only, non-premium) -->
+  {% if current_user.is_authenticated and current_user.role == 'host' and (current_user.plan or 'FREE')|upper != 'PREMIUM' %}
+  <div class="bg-amber-50 border-y border-amber-200">
+    <div class="max-w-6xl mx-auto px-4 py-2 text-[13px] text-amber-800 flex items-center justify-between">
+      <span>Unlock luggage scanning & more with <strong>Premium</strong>.</span>
+      <a href="{{ url_for('billing.pricing') }}" class="px-3 py-1 rounded-lg bg-amber-600 text-white">Upgrade</a>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Page Content -->
   <main class="max-w-6xl mx-auto p-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="space-y-2">
+        <div class="space-y-2 mb-3">
           {% for category, message in messages %}
             <div class="p-3 rounded-xl text-sm
-              {% if category == 'error' %} bg-red-100 text-red-800
-              {% elif category == 'success' %} bg-green-100 text-green-800
-              {% else %} bg-slate-100 text-slate-800 {% endif %}">
+              {% if category == 'error' %} bg-rose-50 text-rose-800 border border-rose-200
+              {% elif category == 'success' %} bg-emerald-50 text-emerald-800 border border-emerald-200
+              {% else %} bg-slate-50 text-slate-800 border border-slate-200 {% endif %}">
               {{ message }}
             </div>
           {% endfor %}
@@ -106,7 +121,7 @@
   </main>
 
   <footer class="py-8 text-center text-sm text-slate-500">
-    AirbnB Gate Access · M-Pesa ready · {{ current_year or "" }}
+    Airbnb Gate Access · M-Pesa Ready · {{ current_year or "" }}
   </footer>
   <script src="/static/htmx-json-render.js"></script>
 </body>

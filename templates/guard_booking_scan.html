@@ -2,120 +2,131 @@
 {% block title %}Booking QR Scanner{% endblock %}
 {% block content %}
 <div class="grid md:grid-cols-2 gap-4">
-  <div class="bg-white rounded-2xl shadow-sm p-6">
-    <h1 class="text-xl font-semibold mb-3">Booking QR Scanner</h1>
+  <!-- SCANNER PANEL -->
+  <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+    <h1 class="text-xl font-semibold">Booking QR Scanner</h1>
 
     <form id="scanForm" class="space-y-3">
-      <label class="text-sm">Checkpoint</label>
-      <select name="checkpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2" required>
-        {% for c in checkpoints %}
-          <option value="{{ c.id }}">{{ c.property.name }} – {{ c.name }}</option>
-        {% endfor %}
-      </select>
+      <!-- keep backend happy if it expects checkpoint_id -->
+      <input type="hidden" name="checkpoint_id" value="0">
 
       <div>
-        <label class="text-sm">Live camera (rear)</label>
-        <div id="videoWrap" class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 transition relative">
+        <label class="text-sm">Live camera</label>
+        <div id="videoWrap"
+             class="aspect-video bg-slate-100 rounded-2xl overflow-hidden ring-1 ring-slate-200 relative">
           <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-2/3 h-2/3 rounded-2xl ring-2 ring-emerald-400/60"></div>
+          </div>
         </div>
-        <p class="text-xs text-slate-500 mt-1">Align the booking QR within the frame.</p>
+        <p class="text-xs text-slate-500 mt-1">Align the code within the frame. Auto-submit on capture.</p>
       </div>
 
       <input type="hidden" id="qr_token" name="qr_token" value="">
-
-      <button id="submitBtn" type="submit" class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
-        Verify Booking
+      <button id="submitBtn" type="submit"
+              class="w-full rounded-xl bg-slate-900 text-white py-2 hover:bg-slate-800">
+        
       </button>
+      <div id="camStatus" class="text-xs text-slate-500">Camera: initializing…</div>
     </form>
   </div>
 
+  <!-- RESULT PANEL -->
   <div id="result" class="bg-white rounded-2xl shadow-sm p-6">
     <p class="text-sm text-slate-500">Scan result will appear here.</p>
   </div>
 </div>
 
+<!-- Toasts -->
 <div id="toast" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-<!-- qr-scanner library -->
+<!-- qr-scanner -->
 <script type="module">
 import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
 
-const video     = document.getElementById('video');
-const videoWrap = document.getElementById('videoWrap');
-const form      = document.getElementById('scanForm');
-const result    = document.getElementById('result');
-const toastBox  = document.getElementById('toast');
-const hiddenTok = document.getElementById('qr_token');
-const submitBtn = document.getElementById('submitBtn');
+const video      = document.getElementById('video');
+const videoWrap  = document.getElementById('videoWrap');
+const form       = document.getElementById('scanForm');
+const resultBox  = document.getElementById('result');
+const toastBox   = document.getElementById('toast');
+const hiddenTok  = document.getElementById('qr_token');
+const submitBtn  = document.getElementById('submitBtn');
+const camStatus  = document.getElementById('camStatus');
 
-function toast(msg, ok=true, ms=1500){
+let scanner;
+let scanCooldown = false;
+
+function toast(msg, ok=true, ms=1600){
   const el = document.createElement('div');
-  el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok?'bg-slate-900 text-white':'bg-red-600 text-white'}`;
+  el.className = `px-3 py-2 rounded-xl shadow text-sm ${ok ? 'bg-slate-900 text-white':'bg-rose-600 text-white'}`;
   el.textContent = msg;
   toastBox.appendChild(el);
   setTimeout(()=>{ el.classList.add('opacity-0','transition','duration-500'); }, ms-400);
-  setTimeout(()=>{ el.remove(); }, ms);
+  setTimeout(()=> el.remove(), ms);
 }
-function glow(ok){
+function glow(state){
   videoWrap.classList.remove('ring-emerald-400','ring-rose-400','ring-2','animate-pulse');
-  if (ok === true){ videoWrap.classList.add('ring-2','ring-emerald-400'); setTimeout(()=>glow(null), 900); }
-  if (ok === false){ videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse'); setTimeout(()=>glow(null), 1200); }
+  if(state==='ok'){ videoWrap.classList.add('ring-2','ring-emerald-400'); setTimeout(()=>glow(null), 900); }
+  if(state==='fail'){ videoWrap.classList.add('ring-2','ring-rose-400','animate-pulse'); setTimeout(()=>glow(null), 1200); }
 }
 
-let lastToken = '';
-let scanning  = false;
-let scanner;
-
-async function start(){
-  try{
-    scanner = new QrScanner(video, (res) => {
-      const token = (res?.data || res || '').trim();
-      if (!token || token === lastToken) return;
-      lastToken = token;
-      hiddenTok.value = token;
-      toast('QR captured ✅');
-    }, {
+async function startScanner(){
+  try {
+    scanner = new QrScanner(video, onScan, {
       preferredCamera: 'environment',
       highlightScanRegion: true,
       highlightCodeOutline: true,
       maxScansPerSecond: 8,
+      returnDetailedScanResult: true
     });
     await scanner.start();
-    toast('Camera ready ✅');
-  }catch(e){
+    camStatus.textContent = 'Camera: scanning…';
+  } catch (e){
     console.error(e);
+    camStatus.textContent = 'Camera: unavailable';
     toast('Camera/QR init failed', false);
   }
 }
-start();
 
-form.addEventListener('submit', async (e)=>{
+function onScan(res){
+  const token = (res?.data || '').trim();
+  if(!token || scanCooldown) return;
+  scanCooldown = true;
+  setTimeout(()=> scanCooldown = false, 1500);
+
+  hiddenTok.value = token;
+  glow('ok');
+  toast('QR captured ✅');
+  submitToServer();
+}
+
+form.addEventListener('submit', (e)=>{
   e.preventDefault();
-  const token = hiddenTok.value.trim();
-  if (!token){
-    toast('No QR detected yet', false);
-    glow(false);
-    return;
-  }
+  if(!hiddenTok.value){ toast('No QR detected yet', false); glow('fail'); return; }
+  submitToServer();
+});
+
+async function submitToServer(){
   submitBtn.disabled = true;
   try{
     const fd = new FormData(form);
-    const resp = await fetch('/guard/booking-scan', { method:'POST', body: fd });
+    const resp = await fetch('{{ url_for("guard.booking_scan_post") }}', { method:'POST', body: fd });
     const json = await resp.json();
-    render(json, token);
-    glow(json.decision === 'allow');
+    render(json, hiddenTok.value);
+    glow(json.decision === 'allow' ? 'ok' : 'fail');
     toast(json.decision === 'allow' ? 'ACCESS ALLOWED' : 'ACCESS DENIED', json.decision === 'allow');
+    if(navigator.vibrate) navigator.vibrate(json.decision === 'allow' ? 20 : [30,40,30]);
   }catch(err){
     console.error(err);
     toast('Network error', false);
+    glow('fail');
   }finally{
     submitBtn.disabled = false;
   }
-});
+}
 
 function chip(t){ return `<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium border-slate-300 text-slate-700 bg-white">${t}</span>`; }
 function fmt(iso){ try{return new Date(iso).toLocaleString();}catch{return iso||'-';} }
-
 function render(json, token){
   const allowed = json.decision === 'allow';
   const toneBox = allowed ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
@@ -132,7 +143,7 @@ function render(json, token){
         ${chip(i.vehicle_plate || '—')}
       </div>` : '';
 
-    result.innerHTML = `
+    resultBox.innerHTML = `
       <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
         <div class="px-4 py-3 border-b ${allowed ? 'border-emerald-100' : 'border-rose-100'} ${toneBox}">
           <div class="flex items-center justify-between">
@@ -175,7 +186,7 @@ function render(json, token){
     return;
   }
 
-  result.innerHTML = `
+  resultBox.innerHTML = `
     <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
       <div class="px-4 py-3 ${toneBox}">
         <div class="flex items-center gap-2">
@@ -190,5 +201,8 @@ function render(json, token){
     </div>
   `;
 }
+
+// auto-start
+startScanner();
 </script>
 {% endblock %}

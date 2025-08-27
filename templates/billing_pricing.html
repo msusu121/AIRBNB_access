@@ -1,61 +1,129 @@
 {% extends "base.html" %}
 {% block title %}Billing & Pricing{% endblock %}
 {% block content %}
-<div class="bg-white rounded-2xl shadow-sm p-6 space-y-6 max-w-3xl mx-auto">
-  <h1 class="text-2xl font-semibold">Checkout  Your Plan</h1>
-  <p class="text-sm text-slate-600">Select the package that fits your needs. All payments are handled via M-Pesa STK Push.</p>
 
-  <div class="grid sm:grid-cols-2 gap-6">
-    <!-- Basic -->
-    <div class="rounded-xl border p-5 flex flex-col justify-between">
-      <div>
-        <div class="font-semibold text-lg">Basic</div>
-        <ul class="text-sm mt-3 list-disc ml-5 space-y-1">
-          <li>Bookings Management</li>
-          <li>Booking QR Scanner</li>
-        </ul>
-       <!-- <div class="mt-4 font-bold text-xl">KES {{ basic_price }} / month</div> -->
+<div class="max-w-4xl mx-auto space-y-6">
+
+  {# Current plan banner #}
+  {% if current_user.is_authenticated and current_user.plan %}
+  <div class="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+        {% if current_user.plan|lower == 'premium' %} bg-amber-50 text-amber-700 border border-amber-200
+        {% else %} bg-slate-100 text-slate-700 border border-slate-200 {% endif %}">
+        CURRENT PLAN: {{ current_user.plan|upper }}
+      </span>
+      <p class="text-sm text-slate-600">Manage your subscription below.</p>
+    </div>
+    {% if current_user.plan|lower == 'premium' %}
+      <a href="{{ url_for('home') }}" class="text-sm text-slate-700 hover:underline">Go to dashboard</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="grid gap-6 md:grid-cols-2">
+    {# BASIC (informational) #}
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 flex flex-col">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Basic</h2>
+          <p class="text-sm text-slate-500 mt-1">Core tools to get started.</p>
+        </div>
+        <span class="text-xs rounded-full border border-slate-200 px-2 py-0.5 text-slate-600">Included</span>
       </div>
-      <div class="mt-4">
-        <!--
-        {% if current_plan != 'basic' %}
-        <form method="post" action="{{ url_for('billing.checkout') }}" class="space-y-2">
-          <input type="hidden" name="plan" value="basic">
-          <label class="text-sm">Phone (2547XXXXXXXX)</label>
-          <input name="phone" required class="w-full rounded-xl border px-3 py-2 text-sm" placeholder="2547XXXXXXXX">
-          <button class="w-full rounded-xl bg-slate-900 text-white py-2 text-sm">Subscribe Basic</button>
-        </form>
-    -->
 
+      <ul class="mt-5 space-y-2 text-sm">
+        <li class="flex items-start gap-2">
+          <span class="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+          Bookings Management
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+          Booking QR Scanner
+        </li>
+      </ul>
+
+      <div class="mt-6 pt-4 border-t border-slate-100">
+        {% if current_plan and current_plan|lower == 'basic' %}
+          <div class="text-emerald-600 text-sm">You’re on Basic ✅</div>
+        {% elif current_plan and current_plan|lower == 'premium' %}
+          <div class="text-slate-500 text-sm">Premium includes everything in Basic.</div>
         {% else %}
-        <div class="mt-2 text-emerald-600 text-sm">You’re on Basic ✅</div>
+          <div class="text-slate-500 text-sm">Sign up is free. Upgrade anytime.</div>
         {% endif %}
       </div>
     </div>
 
-    <!-- Premium -->
-    <div class="rounded-xl border p-5 flex flex-col justify-between">
-      <div>
-        <div class="font-semibold text-lg">Premium</div>
-        <ul class="text-sm mt-3 list-disc ml-5 space-y-1">
-          <li>Luggage Pass Scanner</li>
-          <li>Everything in Basic</li>
-        </ul>
-        <div class="mt-4 font-bold text-xl">KES {{ premium_price }} / month</div>
+    {# PREMIUM (checkout) #}
+    <div class="rounded-2xl border-2 border-amber-200 bg-amber-50 p-6 flex flex-col">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Premium</h2>
+          <p class="text-sm text-amber-700 mt-1">Everything in Basic, plus:</p>
+        </div>
+        <span class="text-xs rounded-full bg-amber-100 text-amber-800 px-2 py-0.5">Recommended</span>
       </div>
-      <div class="mt-4">
-        {% if current_plan != 'premium' %}
-        <form method="post" action="{{ url_for('billing.checkout') }}" class="space-y-2">
-          <input type="hidden" name="plan" value="premium">
-          <label class="text-sm">Phone (2547XXXXXXXX)</label>
-          <input name="phone" required class="w-full rounded-xl border px-3 py-2 text-sm" placeholder="2547XXXXXXXX">
-          <button class="w-full rounded-xl bg-slate-900 text-white py-2 text-sm">Upgrade to Premium</button>
-        </form>
+
+      <ul class="mt-5 space-y-2 text-sm text-amber-900">
+        <li class="flex items-start gap-2">
+          <span class="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+          Luggage Pass Scanner
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+          Priority updates & support
+        </li>
+      </ul>
+
+      <div class="mt-6 flex items-baseline gap-2">
+        <div class="text-2xl font-bold text-amber-900">KES {{ premium_price }}</div>
+        <div class="text-sm text-amber-700">/ month</div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-amber-200">
+        {% if current_plan and current_plan|lower == 'premium' %}
+          <div class="flex items-center justify-between">
+            <div class="text-emerald-700 text-sm">You’re on Premium 🎉</div>
+            <a href="{{ url_for('home') }}" class="text-sm text-amber-800 hover:underline">Go to dashboard</a>
+          </div>
         {% else %}
-        <div class="mt-2 text-emerald-600 text-sm">You’re on Premium 🎉</div>
+          <form method="post" action="{{ url_for('billing.checkout') }}" class="space-y-3">
+            <input type="hidden" name="plan" value="premium">
+            <label class="text-xs font-medium text-amber-900">M-Pesa Phone (2547XXXXXXXX)</label>
+            <input name="phone" required
+                   class="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm placeholder:text-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                   placeholder="2547XXXXXXXX">
+            <button class="w-full rounded-xl bg-amber-700 text-white py-2 text-sm hover:bg-amber-800 transition">
+              Pay with M-Pesa (STK Push)
+            </button>
+            <p class="text-[11px] text-amber-800/80">
+              You’ll receive an M-Pesa prompt to confirm the payment on your phone.
+              In sandbox/testing, only allowed test numbers will simulate a prompt.
+            </p>
+          </form>
         {% endif %}
       </div>
     </div>
   </div>
+
+  {# Help / trust strip #}
+  <div class="rounded-2xl border border-slate-200 bg-white p-4">
+    <div class="grid gap-4 sm:grid-cols-3 text-sm">
+      <div class="flex items-center gap-2">
+        <div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+        <span class="text-slate-700">Secure M-Pesa checkout</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+        <span class="text-slate-700">Change or cancel anytime</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+        <span class="text-slate-700">Instant activation on success</span>
+      </div>
+    </div>
+  </div>
+
 </div>
+
 {% endblock %}

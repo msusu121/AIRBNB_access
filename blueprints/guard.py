@@ -22,6 +22,15 @@ def scan_page():
         return redirect(url_for("home"))
     checkpoints = Checkpoint.query.all()
     return render_template("guard_scan.html", checkpoints=checkpoints)
+def _safe_checkpoint_id(raw):
+    """Return a valid checkpoint id or None."""
+    try:
+        cid = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if cid <= 0:
+        return None
+    return Checkpoint.query.get(cid).id if Checkpoint.query.get(cid) else None
 
 @bp.post("/scan")
 @login_required
@@ -29,7 +38,7 @@ def scan_post():
     if not _guard_only():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
-    checkpoint_id = int(request.form.get("checkpoint_id") or 0)
+    checkpoint_id = _safe_checkpoint_id(request.form.get("checkpoint_id"))
     national_id = (request.form.get("detected_id") or "").strip()
 
     if not national_id:
@@ -120,13 +129,12 @@ def booking_scan_post():
     if not _guard_only():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
-    checkpoint_id = int(request.form.get("checkpoint_id") or 0)
+    checkpoint_id = _safe_checkpoint_id(request.form.get("checkpoint_id"))
     token = (request.form.get("qr_token") or "").strip()
-
     if not token:
-        return jsonify({"ok": True, "decision": "deny", "reason": "no_qr", "message": "No QR token provided."})
+        return jsonify({"ok": True, "decision": "deny", "reason": "no_qr",
+                        "message": "No QR token provided."})
 
-    # Find booking by token
     booking = Booking.query.filter_by(qr_token=token).first()
     if not booking:
         db.session.add(AccessLog(
@@ -142,15 +150,12 @@ def booking_scan_post():
         db.session.commit()
         return jsonify({"ok": True, "decision": "deny", "message": "QR not recognized."})
 
-    # Check current window
     now = datetime.utcnow()
-    decision = "deny"
-    if booking.status != "cancelled" and (booking.check_in <= now <= booking.check_out):
-        decision = "allow"
+    decision = "allow" if (booking.status != "cancelled" and booking.check_in <= now <= booking.check_out) else "deny"
 
     guest = Guest.query.get(booking.guest_id)
     room  = Room.query.get(booking.room_id)
-    prop  = Property.query.get(room.property_id)
+    prop  = Property.query.get(room.property_id) if room else None
 
     db.session.add(AccessLog(
         guard_id=current_user.id,
