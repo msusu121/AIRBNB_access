@@ -2,37 +2,50 @@
 {% block content %}
 <div class="bg-white rounded-2xl shadow-sm p-6 max-w-2xl">
   <h1 class="text-xl font-semibold mb-4">New Booking</h1>
+
   <form method="post" action="/bookings/new" class="grid md:grid-cols-2 gap-4">
     <div class="md:col-span-2">
       <label class="text-sm">Guest Name</label>
       <input name="guest_name" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
     </div>
+
     <div>
       <label class="text-sm">National ID Number</label>
       <input name="national_id" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
     </div>
+
     <div>
       <label class="text-sm">Phone</label>
       <input name="phone" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
     </div>
+
     <div class="md:col-span-2">
       <label class="text-sm">Email</label>
       <input type="email" name="email" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
     </div>
 
+    <!-- Room: works even if property is NULL -->
     <div class="md:col-span-2">
       <label class="text-sm">Room</label>
       <select name="room_id" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
         {% for r in rooms %}
-          <option value="{{ r.id }}">{{ r.property.name }} – {{ r.name }}</option>
+          <option value="{{ r.id }}">
+            {% if r.property %}
+              {{ r.property.name }} — {{ r.name }}
+            {% else %}
+              (No property) — {{ r.name }}
+            {% endif %}
+          </option>
         {% endfor %}
       </select>
+      <p class="text-xs text-slate-500 mt-1">Rooms without a property will appear as “(No property)”.</p>
     </div>
 
     <div>
       <label class="text-sm">Check-in (YYYY-MM-DD HH:MM:SS)</label>
       <input name="check_in" placeholder="2025-08-21 14:00:00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
     </div>
+
     <div>
       <label class="text-sm">Check-out (YYYY-MM-DD HH:MM:SS)</label>
       <input name="check_out" placeholder="2025-08-25 10:00:00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
@@ -42,6 +55,7 @@
       <label class="text-sm">Number of Guests</label>
       <input type="number" min="1" name="guests_count" value="1" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required>
     </div>
+
     <div class="flex items-end gap-2">
       <div>
         <label class="text-sm">Owns Vehicle?</label>

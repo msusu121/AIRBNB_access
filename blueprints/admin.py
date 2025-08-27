@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import asc
-
+from sqlalchemy import or_
 from models import (
     db, User, Property, Room, Checkpoint,
     ROLE_ADMIN, ROLE_HOST, ROLE_GUARD
@@ -165,7 +165,7 @@ def properties_delete(prop_id):
     return redirect(url_for("admin.properties_index"))
 
 
-# ========== ROOMS ==========
+# ========== ROOMS (Property optional) ==========
 @bp.get("/rooms")
 @login_required
 def rooms_index():
@@ -173,30 +173,36 @@ def rooms_index():
         flash("Unauthorized", "error")
         return redirect(url_for("home"))
 
+    # optional legacy filter (safe even if your UI doesn't show it)
     prop_id = request.args.get("property_id", type=int)
 
+    # OUTER JOIN so rooms with property_id == NULL are included
+    q = db.session.query(Room).outerjoin(Property, Property.id == Room.property_id)
+
     if _is_admin():
-        props = Property.query.order_by(Property.name.asc()).all()
-        q = Room.query
+        # Admin sees everything; optional filter by property if provided
         if prop_id:
             q = q.filter(Room.property_id == prop_id)
-        rooms = q.order_by(Room.property_id.asc(), Room.name.asc()).all()
     else:
-        # Host: only their properties/rooms
-        props = Property.query.filter(Property.owner_id == current_user.id)\
-                              .order_by(Property.name.asc()).all()
-        allowed_prop_ids = [p.id for p in props]
-        if prop_id not in allowed_prop_ids:
-            prop_id = None  # ignore invalid filter
-        q = Room.query.join(Property, Property.id == Room.property_id)\
-                      .filter(Property.owner_id == current_user.id)
+        # Host: see (a) rooms in their properties OR (b) rooms with no property
+        q = q.filter(
+            or_(
+                Property.owner_id == current_user.id,   # rooms under host’s properties
+                Room.property_id.is_(None)              # property-less rooms (include them!)
+            )
+        )
         if prop_id:
             q = q.filter(Room.property_id == prop_id)
-        rooms = q.order_by(Room.property_id.asc(), Room.name.asc()).all()
 
-    return render_template("admin_rooms_list.html",
-                           rooms=rooms, properties=props, current_property_id=prop_id)
+    rooms = q.order_by(Room.id.desc()).all()
 
+    # If your template no longer needs properties, passing [] is fine
+    return render_template(
+        "admin_rooms_list.html",
+        rooms=rooms,
+        properties=[],              # keeps old templates happy
+        current_property_id=prop_id
+    )
 
 @bp.get("/rooms/new")
 @login_required
@@ -204,17 +210,8 @@ def rooms_new():
     if not _can_manage():
         flash("Unauthorized", "error")
         return redirect(url_for("admin.rooms_index"))
-
-    if _is_admin():
-        props = Property.query.order_by(Property.name.asc()).all()
-    else:
-        props = Property.query.filter(Property.owner_id == current_user.id)\
-                              .order_by(Property.name.asc()).all()
-        if not props:
-            flash("Create a property first.", "error")
-            return redirect(url_for("admin.properties_new"))
-
-    return render_template("admin_room_form.html", props=props, room=None)
+    # No property selection needed
+    return render_template("admin_room_form.html", room=None)
 
 
 @bp.post("/rooms/new")
@@ -226,25 +223,17 @@ def rooms_create():
 
     name = (request.form.get("name") or "").strip()
     desc = (request.form.get("desc") or "").strip()
-    try:
-        property_id = int(request.form.get("property_id", 0) or 0)
-    except ValueError:
-        property_id = 0
 
     if not name:
         flash("Room name is required.", "error")
         return redirect(url_for("admin.rooms_new"))
 
-    prop = Property.query.get_or_404(property_id)
-    if _is_host() and prop.owner_id != current_user.id:
-        flash("Unauthorized property selection.", "error")
-        return redirect(url_for("admin.rooms_new"))
-
-    room = Room(name=name, desc=desc, property_id=property_id)
+    # Property is optional now; if you later add a UI to attach, handle it there.
+    room = Room(name=name, desc=desc, property_id=None)
     db.session.add(room)
     db.session.commit()
     flash("Room created.", "success")
-    return redirect(url_for("admin.rooms_index", property_id=property_id))
+    return redirect(url_for("admin.rooms_index"))
 
 
 @bp.get("/rooms/<int:room_id>/edit")
@@ -255,18 +244,15 @@ def rooms_edit(room_id):
         return redirect(url_for("admin.rooms_index"))
 
     room = Room.query.get_or_404(room_id)
-    prop = Property.query.get(room.property_id)
-    if _is_host() and prop.owner_id != current_user.id:
-        flash("Unauthorized", "error")
-        return redirect(url_for("admin.rooms_index"))
 
-    if _is_admin():
-        props = Property.query.order_by(Property.name.asc()).all()
-    else:
-        props = Property.query.filter(Property.owner_id == current_user.id)\
-                              .order_by(Property.name.asc()).all()
+    # If room is attached to a property, enforce host ownership
+    if _is_host() and room.property_id:
+        prop = Property.query.get(room.property_id)
+        if not prop or prop.owner_id != current_user.id:
+            flash("Unauthorized", "error")
+            return redirect(url_for("admin.rooms_index"))
 
-    return render_template("admin_room_form.html", props=props, room=room)
+    return render_template("admin_room_form.html", room=room)
 
 
 @bp.post("/rooms/<int:room_id>/edit")
@@ -277,31 +263,16 @@ def rooms_update(room_id):
         return redirect(url_for("admin.rooms_index"))
 
     room = Room.query.get_or_404(room_id)
-    current_prop = Property.query.get(room.property_id)
 
-    if _is_host() and current_prop.owner_id != current_user.id:
-        flash("Unauthorized", "error")
-        return redirect(url_for("admin.rooms_index"))
+    # If attached, enforce host ownership
+    if _is_host() and room.property_id:
+        prop = Property.query.get(room.property_id)
+        if not prop or prop.owner_id != current_user.id:
+            flash("Unauthorized", "error")
+            return redirect(url_for("admin.rooms_index"))
 
     room.name = (request.form.get("name") or "").strip()
     room.desc = (request.form.get("desc") or "").strip()
-
-    # Allow moving room to another property (admin any; host only theirs)
-    try:
-        new_prop_id = int(request.form.get("property_id", room.property_id) or room.property_id)
-    except ValueError:
-        new_prop_id = room.property_id
-
-    new_prop = Property.query.get(new_prop_id)
-    if not new_prop:
-        flash("Invalid property.", "error")
-        return redirect(url_for("admin.rooms_edit", room_id=room.id))
-
-    if _is_host() and new_prop.owner_id != current_user.id:
-        flash("Unauthorized property selection.", "error")
-        return redirect(url_for("admin.rooms_edit", room_id=room.id))
-
-    room.property_id = new_prop_id
 
     if not room.name:
         flash("Room name is required.", "error")
@@ -309,7 +280,7 @@ def rooms_update(room_id):
 
     db.session.commit()
     flash("Room updated.", "success")
-    return redirect(url_for("admin.rooms_index", property_id=room.property_id))
+    return redirect(url_for("admin.rooms_index"))
 
 
 @bp.post("/rooms/<int:room_id>/delete")
@@ -320,16 +291,19 @@ def rooms_delete(room_id):
         return redirect(url_for("admin.rooms_index"))
 
     room = Room.query.get_or_404(room_id)
-    prop = Property.query.get(room.property_id)
-    if _is_host() and prop.owner_id != current_user.id:
-        flash("Unauthorized", "error")
-        return redirect(url_for("admin.rooms_index"))
 
-    prop_id = room.property_id
+    # If attached, enforce host ownership
+    if _is_host() and room.property_id:
+        prop = Property.query.get(room.property_id)
+        if not prop or prop.owner_id != current_user.id:
+            flash("Unauthorized", "error")
+            return redirect(url_for("admin.rooms_index"))
+
     db.session.delete(room)
     db.session.commit()
     flash("Room deleted.", "success")
-    return redirect(url_for("admin.rooms_index", property_id=prop_id))
+    return redirect(url_for("admin.rooms_index"))
+
 
 
 # ========== CHECKPOINTS ==========

@@ -1,48 +1,60 @@
 {% extends "base.html" %}
+{% block title %}Rooms{% endblock %}
 {% block content %}
-<div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+<div class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
   <div class="flex items-center justify-between">
-    <h1 class="text-xl font-semibold">Rooms</h1>
-    <a href="{{ url_for('admin.rooms_new') }}" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Room</a>
+    <div>
+      <h1 class="text-xl font-semibold">Rooms</h1>
+      <p class="text-sm text-slate-600 mt-1">Manage your rooms. Property is optional.</p>
+    </div>
+    <a href="{{ url_for('admin.rooms_new') }}"
+       class="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm">New Room</a>
   </div>
-
-  <form method="get" class="flex items-center gap-2">
-    <label class="text-sm">Filter by property</label>
-    <select name="property_id" class="rounded-xl border border-slate-300 px-3 py-1.5 text-sm" onchange="this.form.submit()">
-      <option value="">All</option>
-      {% for p in properties %}
-        <option value="{{ p.id }}" {% if current_property_id and current_property_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-      {% endfor %}
-    </select>
-  </form>
 
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
         <tr class="text-left text-slate-500">
-          <th class="py-2">ID</th>
-          <th>Property</th>
-          <th>Name</th>
+          <th class="py-2 w-16">ID</th>
+          <th class="w-56">House Number</th>
           <th>Description</th>
-          <th></th>
+          <th class="w-36"></th>
         </tr>
       </thead>
       <tbody>
         {% for r in rooms %}
         <tr class="border-t">
-          <td class="py-2">{{ r.id }}</td>
-          <td>{{ r.property.name }}</td>
-          <td>{{ r.name }}</td>
-          <td class="truncate max-w-xs">{{ r.desc or "—" }}</td>
-          <td class="text-right">
-            <a href="{{ url_for('admin.rooms_edit', room_id=r.id) }}" class="text-slate-700 hover:underline">Edit</a>
-            <form method="post" action="{{ url_for('admin.rooms_delete', room_id=r.id) }}" class="inline" onsubmit="return confirm('Delete this room?')">
+          <td class="py-2 align-top">{{ r.id }}</td>
+          <td class="align-top">
+            <div class="font-medium text-slate-900">{{ r.name }}</div>
+            {# Optional: tiny badge if a property exists (won't error if null) #}
+            {% if r.property %}
+              <div class="mt-0.5 text-[11px] inline-flex items-center rounded-full border px-2 py-0.5
+                          border-slate-300 text-slate-600 bg-slate-50">
+                {{ r.property.name }}
+              </div>
+            {% endif %}
+          </td>
+          <td class="align-top text-slate-700">
+            <div class="line-clamp-2 max-w-xl">{{ r.desc or "—" }}</div>
+          </td>
+          <td class="align-top text-right">
+            <a href="{{ url_for('admin.rooms_edit', room_id=r.id) }}"
+               class="text-slate-700 hover:underline">Edit</a>
+            <form method="post"
+                  action="{{ url_for('admin.rooms_delete', room_id=r.id) }}"
+                  class="inline"
+                  onsubmit="return confirm('Delete this room?')">
               <button class="ml-3 text-rose-600 hover:underline">Delete</button>
             </form>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="py-6 text-center text-slate-500">No rooms found.</td></tr>
+        <tr>
+          <td colspan="4" class="py-10 text-center text-slate-500">
+            No rooms yet. <a href="{{ url_for('admin.rooms_new') }}" class="text-slate-700 underline">Create the first room</a>.
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
