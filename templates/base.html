@@ -33,9 +33,9 @@
               <div class="relative group">
                 <button class="px-3 py-1.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100">Manage</button>
                 <div class="absolute right-0 mt-1 hidden group-hover:block bg-white border border-slate-200 rounded-xl shadow-lg min-w-[220px] z-40">
-                  <a href="{{ url_for('admin.properties_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>
+              <!--   <a href="{{ url_for('admin.properties_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Properties</a>  -->
                   <a href="{{ url_for('admin.rooms_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Rooms</a>
-                  <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a>
+             <!--     <a href="{{ url_for('admin.checkpoints_index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Checkpoints</a> -->
                   <a href="{{ url_for('bookings.index') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Bookings</a>
                   <a href="{{ url_for('luggage.list_') }}" class="block px-3 py-2 text-sm hover:bg-slate-50">Luggage</a>
                   {% if current_user.role == 'admin' %}
