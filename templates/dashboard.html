@@ -68,10 +68,12 @@
     <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm ring-1 ring-slate-200">
       <h2 class="font-semibold">Quick Actions</h2>
       <div class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <a href="{{ url_for('bookings.new_booking') }}"
-           class="block rounded-xl bg-slate-900 text-white px-4 py-3 text-sm text-center hover:bg-slate-800">
-          Create Booking
-        </a>
+        {% if role == 'host' %}
+  <a href="{{ url_for('bookings.new_booking') }}"
+     class="block rounded-xl bg-slate-900 text-white px-4 py-3 text-sm text-center hover:bg-slate-800">
+    Create Booking
+  </a>
+  {% endif %}
         <a href="{{ url_for('bookings.index') }}"
            class="block rounded-xl border border-slate-200 px-4 py-3 text-sm text-center hover:bg-slate-50">
           View Bookings

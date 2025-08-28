@@ -16,6 +16,8 @@ from models import (
     Booking, Luggage, LuggageScanLog, Checkpoint, Room, Guest, Property, User
 )
 from utils.plan_gate import require_plan
+from utils.mailer import send_email_html
+
 
 # Optional QR lib (PNG generation)
 try:
@@ -205,6 +207,72 @@ def create():
     db.session.add(lug)
     db.session.commit()
 
+     # --- Email the guest (if booking.guest.email is present) ---
+    try:
+        # Build/ensure QR PNG bytes for inline <img cid:...>
+        # You already created `qr_token`; generate a fresh PNG in-memory for email:
+        qr_png_bytes = None
+        if qrcode is not None:
+            img = qrcode.make(qr_token, image_factory=PilImage, box_size=8, border=2)
+            bio = io.BytesIO()
+            img.save(bio, format="PNG")
+            qr_png_bytes = bio.getvalue()
+
+        # Lookup joined context for email
+        booking = Booking.query.get(booking_id)
+        room    = Room.query.get(booking.room_id) if booking else None
+        prop    = Property.query.get(room.property_id) if (room and room.property_id) else None
+        guest   = Guest.query.get(booking.guest_id) if booking else None
+
+        if guest and guest.email:
+            # Use a stable cid id
+            qr_cid = f"luggageqr-{lug.id}"
+
+            html = f"""
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f6f7fb;padding:24px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb">
+      <tr>
+        <td style="padding:18px 22px;border-bottom:1px solid #e5e7eb">
+          <div style="font-weight:600;font-size:18px;color:#0f172a">Luggage Pass Ready</div>
+          <div style="font-size:13px;color:#475569;margin-top:2px">Show this QR at the gate when exiting with luggage.</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:18px 22px">
+          <div style="font-size:14px;color:#0f172a;margin-bottom:8px"><strong>Guest</strong>: {guest.full_name}</div>
+          <div style="font-size:12px;color:#475569">Label: {label}</div>
+          <div style="font-size:12px;color:#475569">Size: {size.capitalize()}</div>
+          {"<div style='font-size:12px;color:#475569'>Property / Room: " + (prop.name if prop else "—") + " · " + (room.name if room else "—") + "</div>"}
+          <div style="height:16px"></div>
+          <div style="font-size:13px;color:#0f172a;margin-bottom:6px"><strong>Luggage QR</strong></div>
+          <img src="cid:{qr_cid}" alt="Luggage QR"
+               style="display:block;width:180px;height:180px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;padding:8px;background:#fff" />
+          <div style="height:8px"></div>
+          <div style="font-size:12px;color:#64748b">The guard will scan this to authorize your luggage to exit.</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 22px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:12px;color:#64748b">
+          Luggage #{lug.id} · Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
+
+            inline = {qr_cid: qr_png_bytes} if qr_png_bytes else None
+            send_email_html(
+                subject="Your Luggage Pass (QR)",
+                to_email=guest.email,
+                html=html,
+                inline=inline
+            )
+    except Exception as e:
+        current_app.logger.warning(f"Failed to send luggage email: {e}")
+
     flash("Luggage registered and QR generated.", "success")
     return redirect(url_for("luggage.detail", lug_id=lug.id))
 
@@ -332,7 +400,7 @@ def luggage_uploads(fname: str):
 
 @bp.get("/scan")
 @login_required
-@require_plan("premium")
+#@require_plan("premium")
 def guard_scan_page():
     if not _is_guard():
         flash("Unauthorized", "error")

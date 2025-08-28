@@ -61,7 +61,7 @@ class Property(db.Model):
 
 class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    property_id = db.Column(db.Integer, db.ForeignKey("property.id"), nullable=False)
+    property_id = db.Column(db.Integer, db.ForeignKey("property.id"), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     desc = db.Column(db.Text)
     property = db.relationship("Property")
@@ -101,7 +101,7 @@ class AccessLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     guard_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    checkpoint_id = db.Column(db.Integer, db.ForeignKey("checkpoint.id"), nullable=False)
+    checkpoint_id = db.Column(db.Integer, db.ForeignKey("checkpoint.id"), nullable=True)
     guest_id = db.Column(db.Integer, db.ForeignKey("guest.id"))
     booking_id = db.Column(db.Integer, db.ForeignKey("booking.id"))
     national_id_number = db.Column(db.String(100))  # from OCR or manual
@@ -135,7 +135,7 @@ class LuggageScanLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     guard_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    checkpoint_id = db.Column(db.Integer, db.ForeignKey("checkpoint.id"), nullable=False)
+    checkpoint_id = db.Column(db.Integer, db.ForeignKey("checkpoint.id"), nullable=True)
     luggage_id = db.Column(db.Integer, db.ForeignKey("luggage.id"))
     decision = db.Column(db.String(20))  # allow|deny
     note = db.Column(db.String(255))  
