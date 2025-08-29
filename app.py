@@ -17,6 +17,7 @@ NAIROBI_TZ = pytz.timezone("Africa/Nairobi")
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
+    application = app
     app.config.from_object(Config)
 
     db.init_app(app)
